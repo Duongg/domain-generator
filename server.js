@@ -46,15 +46,85 @@ const MOCK_POOL = [
   { name: 'snaplane', style: 'wordplay', suggested_tlds: ['com', 'io'], rationale: 'Quick action plus a clear direction', insight: 'Implies decisiveness and momentum — a good fit for productivity apps or workflow automation tools.', tags: ['Tech-forward', 'Memorable', 'B2B fit'] },
 ];
 
+// --- Brand quality score ---
+// Composite of two deterministic signals (computed here, free) and two
+// LLM-judged signals (memorability/distinctiveness, requested in the same
+// generation call above so scoring costs no extra API round trip).
+function lengthScore(name) {
+  const len = name.length;
+  return Math.max(20, Math.min(100, 100 - Math.max(0, len - 8) * 8));
+}
+
+function pronounceabilityScore(name) {
+  const letters = name.replace(/[^a-z]/g, '');
+  if (!letters) return 50;
+  const vowels = (letters.match(/[aeiou]/g) || []).length;
+  const ratio = vowels / letters.length;
+  const idealLow = 0.35;
+  const idealHigh = 0.55;
+  let ratioScore;
+  if (ratio >= idealLow && ratio <= idealHigh) {
+    ratioScore = 100;
+  } else {
+    const dist = ratio < idealLow ? idealLow - ratio : ratio - idealHigh;
+    ratioScore = Math.max(20, 100 - dist * 300);
+  }
+  const clusters = letters.match(/[^aeiou]{3,}/g) || [];
+  const clusterPenalty = clusters.length * 15;
+  return Math.max(0, Math.min(100, Math.round(ratioScore - clusterPenalty)));
+}
+
+// Recovers a usable candidate list from a JSON array that got cut off
+// mid-object when the model's response hit max_tokens, instead of failing
+// the whole request over a truncated tail.
+function salvageJsonArray(text) {
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  const lastCompleteEntry = text.lastIndexOf('},');
+  if (lastCompleteEntry !== -1) {
+    try {
+      return JSON.parse(`${text.slice(0, lastCompleteEntry + 1)}]`);
+    } catch {}
+  }
+
+  const lastObjectEnd = text.lastIndexOf('}');
+  if (lastObjectEnd !== -1) {
+    try {
+      return JSON.parse(`${text.slice(0, lastObjectEnd + 1)}]`);
+    } catch {}
+  }
+
+  return null;
+}
+
+function computeBrandScore(name, memorability, distinctiveness) {
+  const length = lengthScore(name);
+  const pronounceability = pronounceabilityScore(name);
+  const memorabilityScore = Math.max(1, Math.min(10, Number(memorability) || 5)) * 10;
+  const distinctivenessScore = Math.max(1, Math.min(10, Number(distinctiveness) || 5)) * 10;
+  const total = Math.round(
+    length * 0.25 + pronounceability * 0.25 + memorabilityScore * 0.25 + distinctivenessScore * 0.25
+  );
+  return { total, length, pronounceability, memorability: memorabilityScore, distinctiveness: distinctivenessScore };
+}
+
 function getMockCandidates(count) {
   const result = [];
   for (let i = 0; i < count; i += 1) {
     const base = MOCK_POOL[i % MOCK_POOL.length];
     // Append a suffix on repeat cycles so names stay unique past 20 items.
     const cycle = Math.floor(i / MOCK_POOL.length);
+    const name = cycle === 0 ? base.name : `${base.name}${cycle + 1}`;
+    // Demo mode has no LLM call to source memorability/distinctiveness from,
+    // so derive a stand-in from the existing hand-picked tags.
+    const memorability = base.tags.includes('Memorable') ? 8 : 6;
+    const distinctiveness = base.tags.includes('Unique') ? 8 : 6;
     result.push({
       ...base,
-      name: cycle === 0 ? base.name : `${base.name}${cycle + 1}`,
+      name,
+      brand_score: computeBrandScore(name, memorability, distinctiveness),
     });
   }
   return result;
@@ -78,6 +148,8 @@ Return a JSON array. Each item has:
 - "rationale": one sentence, max 12 words, describing the name's meaning
 - "insight": one sentence (max 20 words) explaining specifically why this name fits the user's described business — reference their actual product or audience
 - "tags": array of exactly 3 short labels characterising this name, chosen from: "Easy to spell", "Hard to spell", "Memorable", "Global-ready", "Local feel", "Tech-forward", "Human-first", "B2B fit", "B2C fit", "Premium feel", "Playful", "Trustworthy", "Unique", "Versatile"
+- "memorability": integer 1-10, how easy this name is to recall after hearing it once
+- "distinctiveness": integer 1-10, how unlikely this name is to be confused with an existing brand or generic term
 
 Rules:
 - No trademarked or real brand names
@@ -190,7 +262,7 @@ app.post('/api/generate-names', async (req, res) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: Math.min(8192, safeCount * 150 + 500),
+        max_tokens: Math.min(14000, safeCount * 220 + 800),
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
       }),
@@ -211,26 +283,31 @@ app.post('/api/generate-names', async (req, res) => {
     // Defensive cleanup in case the model wraps output in code fences despite instructions.
     const cleaned = textBlock.text.replace(/```json|```/g, '').trim();
 
-    let candidates;
-    try {
-      candidates = JSON.parse(cleaned);
-    } catch (parseErr) {
+    const candidates = salvageJsonArray(cleaned);
+    if (!candidates) {
       console.error('Failed to parse model output as JSON:', cleaned);
       return res.status(502).json({ error: 'Could not parse name suggestions. Try again.' });
+    }
+    if (data.stop_reason === 'max_tokens') {
+      console.warn(`generate-names hit max_tokens for count=${safeCount}; salvaged ${Array.isArray(candidates) ? candidates.length : 0} candidates.`);
     }
 
     // Basic shape validation -- don't trust the model blindly.
     const VALID_TAGS = new Set(['Easy to spell','Hard to spell','Memorable','Global-ready','Local feel','Tech-forward','Human-first','B2B fit','B2C fit','Premium feel','Playful','Trustworthy','Unique','Versatile']);
     const safeCandidates = (Array.isArray(candidates) ? candidates : [])
       .filter((c) => c && typeof c.name === 'string' && c.name.length > 0)
-      .map((c) => ({
-        name: c.name.toLowerCase().replace(/[^a-z0-9-]/g, ''),
-        style: ['literal', 'brandable', 'compound', 'wordplay'].includes(c.style) ? c.style : 'literal',
-        suggested_tlds: Array.isArray(c.suggested_tlds) ? c.suggested_tlds.slice(0, 3) : ['com'],
-        rationale: typeof c.rationale === 'string' ? c.rationale : '',
-        insight: typeof c.insight === 'string' ? c.insight.slice(0, 200) : '',
-        tags: Array.isArray(c.tags) ? c.tags.filter((t) => typeof t === 'string' && VALID_TAGS.has(t)).slice(0, 3) : [],
-      }));
+      .map((c) => {
+        const name = c.name.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        return {
+          name,
+          style: ['literal', 'brandable', 'compound', 'wordplay'].includes(c.style) ? c.style : 'literal',
+          suggested_tlds: Array.isArray(c.suggested_tlds) ? c.suggested_tlds.slice(0, 3) : ['com'],
+          rationale: typeof c.rationale === 'string' ? c.rationale : '',
+          insight: typeof c.insight === 'string' ? c.insight.slice(0, 200) : '',
+          tags: Array.isArray(c.tags) ? c.tags.filter((t) => typeof t === 'string' && VALID_TAGS.has(t)).slice(0, 3) : [],
+          brand_score: computeBrandScore(name, c.memorability, c.distinctiveness),
+        };
+      });
 
     res.json({ candidates: safeCandidates, demoMode: false });
   } catch (err) {

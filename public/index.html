@@ -216,12 +216,19 @@
     <div class="journey-header">
       <div class="journey-header-text">
         <h2 class="journey-title">Let's find your name</h2>
-        <p class="journey-sub">Follow the steps below — takes about 2 minutes.</p>
+        <p class="journey-sub" id="journey-sub">Follow the steps below — takes about 2 minutes.</p>
       </div>
+      <button type="button" class="start-over-btn" id="start-over-btn" hidden>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        <span id="start-over-btn-label">Start over</span>
+      </button>
       <div id="demo-banner" class="demo-banner" hidden>
         Demo mode — showing sample names. Add an Anthropic API key to generate real ones.
       </div>
     </div>
+    <p class="resume-banner" id="resume-banner" hidden>
+      Picking up where you left off — step <span id="resume-banner-step"></span> of 4.
+    </p>
 
     <div class="progress-overview">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
@@ -402,6 +409,10 @@
                 <span class="tld-ctx">Community</span>
               </label>
             </div>
+            <div class="edit-form-actions" id="step3-edit-actions">
+              <button type="button" class="btn-secondary" id="step3-cancel-btn">Cancel</button>
+              <button type="button" class="btn-primary" id="step3-recheck-btn">Recheck availability &rarr;</button>
+            </div>
             <div class="progress-block" id="availability-progress" hidden>
               <div class="spinner"></div>
               <span class="progress-text">Checking availability…</span>
@@ -420,8 +431,15 @@
             <h2 class="step-title">Choose your domain</h2>
             <div class="step-summary"><span class="step-summary-text"></span></div>
           </div>
-          <p class="step-help">Taken domains are dimmed. Click any available name to register on GoDaddy.</p>
+          <p class="step-help"><strong>Dimmed</strong> names are already taken &nbsp;·&nbsp; <strong>tap a score</strong> to see its breakdown &nbsp;·&nbsp; <strong>click a name</strong> to register it on GoDaddy</p>
           <div class="step-content">
+            <div class="results-toolbar">
+              <span class="results-toolbar-label">Sort by</span>
+              <div class="sort-toggle" id="sort-toggle" role="group" aria-label="Sort names by">
+                <button type="button" class="sort-btn is-active" data-sort="availability">Best domain match</button>
+                <button type="button" class="sort-btn" data-sort="score">Best brand score</button>
+              </div>
+            </div>
             <div id="results" class="results-grid"></div>
           </div>
         </div>
@@ -507,6 +525,20 @@
       </button>
     </div>
     <div class="saved-panel-body" id="saved-panel-body"></div>
+  </div>
+
+  <!-- ─────────────────── BRAND RISK CHECK ─────────────────── -->
+  <div class="risk-panel-backdrop" id="risk-panel-backdrop" hidden></div>
+
+  <div class="risk-panel" id="risk-panel" role="dialog" aria-labelledby="risk-panel-title" hidden>
+    <div class="saved-panel-header">
+      <h2 id="risk-panel-title">Check <span id="risk-panel-name"></span></h2>
+      <button type="button" class="saved-panel-close" id="risk-panel-close" aria-label="Close brand risk check">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="risk-panel-note">Quick links to check yourself — not live checks, and not legal advice.</p>
+    <div class="risk-panel-body" id="risk-panel-body"></div>
   </div>
 
   <script src="app.js"></script>
