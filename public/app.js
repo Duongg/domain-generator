@@ -1017,6 +1017,55 @@ function renderChooseStep() {
   setTimeout(tick, 2400); // wait before first deletion
 }());
 
+// ---------- Hero preview (AI-generated daily top domains by category) ----------
+
+(function () {
+  const grid = document.getElementById('hero-preview');
+  const label = document.getElementById('hero-preview-label');
+  const labelText = document.getElementById('hero-preview-label-text');
+  if (!grid || !label || !labelText) return;
+
+  const CARDS_SHOWN = 6;
+
+  fetch('/api/daily-preview')
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then(({ category, domains }) => {
+      if (!Array.isArray(domains) || domains.length === 0) return; // keep static fallback markup
+
+      labelText.textContent = `Trending in ${category} today`;
+      grid.innerHTML = domains
+        .slice(0, CARDS_SHOWN)
+        .map((d) => {
+          const domain = `${d.name}.${d.tld}`;
+          const inner = `
+            <div class="hp-left">
+              <span class="hp-name">${escapeHtml(d.name)}</span><span class="hp-tld">.${escapeHtml(d.tld)}</span>
+            </div>
+            <span class="hp-badge ${d.available ? 'avail' : 'taken'}">${d.available ? 'Available' : 'Taken'}</span>`;
+
+          if (!d.available) return `<div class="hp-card hp-taken">${inner}</div>`;
+
+          return `
+            <a class="hp-card hp-avail" href="${GODADDY.searchUrl(domain)}" target="_blank" rel="noopener noreferrer" data-name="${escapeHtml(d.name)}" data-tld="${escapeHtml(d.tld)}" aria-label="Register ${escapeHtml(domain)} on GoDaddy">${inner}
+            </a>`;
+        })
+        .join('');
+
+      grid.querySelectorAll('a.hp-card.hp-avail').forEach((link) => {
+        link.addEventListener('click', () => {
+          fetch('/api/log-click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: link.dataset.name, tld: link.dataset.tld, registrar: 'godaddy' }),
+          }).catch(() => {});
+        });
+      });
+    })
+    .catch(() => {
+      // Network/API failure — leave the static markup already in the page.
+    });
+}());
+
 // ---------- Init ----------
 
 const startOverBtn = document.getElementById('start-over-btn');

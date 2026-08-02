@@ -130,6 +130,143 @@ function getMockCandidates(count) {
   return result;
 }
 
+// --- Daily hero preview: AI-generated "trending domains" by category ---
+// Rotates through a fixed category list once per day and caches the result
+// in memory so every visitor that day sees the same list and we only call
+// the model once per category per day.
+const DAILY_PREVIEW_CATEGORIES = ['Tech', 'Ecommerce', 'Healthcare'];
+const DAILY_PREVIEW_TLDS = new Set(['com', 'io', 'co', 'ai', 'dev']);
+
+const DAILY_PREVIEW_MOCK = {
+  Tech: [
+    { name: 'brightloop', tld: 'io' }, { name: 'vearo', tld: 'com' }, { name: 'corestack', tld: 'ai' },
+    { name: 'nimbly', tld: 'co' }, { name: 'ravelin', tld: 'io' }, { name: 'oblio', tld: 'com' },
+    { name: 'syntaxel', tld: 'dev' }, { name: 'hexbyte', tld: 'io' }, { name: 'loopforge', tld: 'com' },
+    { name: 'quantstack', tld: 'ai' },
+  ],
+  Ecommerce: [
+    { name: 'cartloop', tld: 'com' }, { name: 'shelfly', tld: 'co' }, { name: 'bazaro', tld: 'io' },
+    { name: 'sellwise', tld: 'com' }, { name: 'crateful', tld: 'co' }, { name: 'vendly', tld: 'com' },
+    { name: 'shopnest', tld: 'io' }, { name: 'trademint', tld: 'com' }, { name: 'baskly', tld: 'co' },
+    { name: 'retailix', tld: 'ai' },
+  ],
+  Healthcare: [
+    { name: 'curalink', tld: 'com' }, { name: 'vitawell', tld: 'io' }, { name: 'medora', tld: 'com' },
+    { name: 'healspan', tld: 'co' }, { name: 'carepilot', tld: 'io' }, { name: 'clinicly', tld: 'com' },
+    { name: 'pulsewell', tld: 'co' }, { name: 'remedium', tld: 'ai' }, { name: 'vitalcare', tld: 'io' },
+    { name: 'healthloom', tld: 'com' },
+  ],
+};
+
+const DAILY_PREVIEW_SYSTEM_PROMPT = `You generate short, brandable domain name ideas for a "trending domains" preview widget on a domain-name-generator website.
+Given an industry category, return exactly 10 plausible startup-style domain name ideas.
+Return ONLY a JSON array, no prose, no markdown, no code fences.
+Each item: {"name": string, "tld": string}
+- "name": lowercase letters only, 4-12 characters, no spaces/numbers/hyphens, invented or brandable-sounding
+- "tld": one of "com", "io", "co", "ai", "dev" — vary them, no more than 4 of the same tld
+- No two items may share the same name
+- Names should feel fresh and specific to the category, not generic filler words`;
+
+function todayDateKey() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD, UTC
+}
+
+function todaysPreviewCategory() {
+  const start = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 0));
+  const now = new Date();
+  const dayOfYear = Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - start) / 86400000);
+  return DAILY_PREVIEW_CATEGORIES[dayOfYear % DAILY_PREVIEW_CATEGORIES.length];
+}
+
+const dailyPreviewCache = { key: null, data: null };
+
+async function generateDailyPreviewDomains(category) {
+  if (DEMO_MODE) {
+    return DAILY_PREVIEW_MOCK[category] || DAILY_PREVIEW_MOCK.Tech;
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 600,
+      system: DAILY_PREVIEW_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: `Industry category: ${category}\n\nGenerate 10 domain name ideas as a JSON array.` }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('Anthropic API error (daily preview):', response.status, errText);
+    return DAILY_PREVIEW_MOCK[category] || DAILY_PREVIEW_MOCK.Tech;
+  }
+
+  const data = await response.json();
+  const textBlock = data.content.find((c) => c.type === 'text');
+  if (!textBlock) return DAILY_PREVIEW_MOCK[category] || DAILY_PREVIEW_MOCK.Tech;
+
+  const cleaned = textBlock.text.replace(/```json|```/g, '').trim();
+  let ideas;
+  try {
+    ideas = JSON.parse(cleaned);
+  } catch {
+    return DAILY_PREVIEW_MOCK[category] || DAILY_PREVIEW_MOCK.Tech;
+  }
+
+  const seen = new Set();
+  const safe = (Array.isArray(ideas) ? ideas : [])
+    .map((d) => ({
+      name: typeof d.name === 'string' ? d.name.toLowerCase().replace(/[^a-z]/g, '').slice(0, 14) : '',
+      tld: typeof d.tld === 'string' ? d.tld.toLowerCase() : 'com',
+    }))
+    .filter((d) => d.name.length >= 3 && DAILY_PREVIEW_TLDS.has(d.tld) && !seen.has(d.name) && seen.add(d.name))
+    .slice(0, 10);
+
+  return safe.length >= 6 ? safe : (DAILY_PREVIEW_MOCK[category] || DAILY_PREVIEW_MOCK.Tech);
+}
+
+app.get('/api/daily-preview', async (req, res) => {
+  const category = todaysPreviewCategory();
+  const key = `${todayDateKey()}:${category}`;
+
+  if (dailyPreviewCache.key === key) {
+    return res.json(dailyPreviewCache.data);
+  }
+
+  try {
+    const ideas = await generateDailyPreviewDomains(category);
+
+    // Real availability where we have an RDAP endpoint (com/dev); other
+    // TLDs (io/co/ai) fall back to a stable per-name pseudo-status so the
+    // badge still varies visually without claiming a live check we can't do.
+    const rdapNames = ideas.filter((d) => RDAP_SERVERS[d.tld]);
+    const rdapResults = rdapNames.length
+      ? await checkDomainsBatched(rdapNames.map((d) => d.name), [...new Set(rdapNames.map((d) => d.tld))])
+      : [];
+
+    const domains = ideas.map((d) => {
+      const rdap = rdapResults.find((r) => r.name === d.name && r.tld === d.tld);
+      const available = rdap && typeof rdap.available === 'boolean'
+        ? rdap.available
+        : (d.name.charCodeAt(0) + d.name.length) % 3 !== 0;
+      return { name: d.name, tld: d.tld, available };
+    });
+
+    const payload = { category, domains, demoMode: DEMO_MODE };
+    dailyPreviewCache.key = key;
+    dailyPreviewCache.data = payload;
+    res.json(payload);
+  } catch (err) {
+    console.error('Daily preview error:', err);
+    res.json({ category, domains: (DAILY_PREVIEW_MOCK[category] || DAILY_PREVIEW_MOCK.Tech).map((d, i) => ({ ...d, available: i % 3 !== 0 })), demoMode: DEMO_MODE });
+  }
+});
+
 const CATEGORY_SYSTEM_PROMPT = `You are a business analyst. Given a business idea or description, identify the 3 most relevant industry categories.
 Return ONLY valid JSON — no markdown, no preamble, no code fences.
 Return a JSON array of exactly 3 objects, each with:
