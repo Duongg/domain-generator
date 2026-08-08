@@ -386,7 +386,7 @@ a.hp-card.hp-avail:focus-visible {
 }
 
 .hero-partner-check {
-  color: #1DB846;
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -413,12 +413,12 @@ a.hp-card.hp-avail:focus-visible {
   color: rgba(148, 163, 184, 0.5);
 }
 
-.hero-partner-gd {
+.hero-partner-brand {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: rgba(29, 184, 70, 0.1);
-  border: 1px solid rgba(29, 184, 70, 0.22);
+  background: rgba(0, 164, 166, 0.1);
+  border: 1px solid rgba(0, 164, 166, 0.22);
   border-radius: 8px;
   padding: 5px 11px 5px 7px;
   text-decoration: none;
@@ -426,18 +426,18 @@ a.hp-card.hp-avail:focus-visible {
   flex-shrink: 0;
 }
 
-.hero-partner-gd:hover {
-  background: rgba(29, 184, 70, 0.18);
-  border-color: rgba(29, 184, 70, 0.4);
+.hero-partner-brand:hover {
+  background: rgba(0, 164, 166, 0.18);
+  border-color: rgba(0, 164, 166, 0.4);
   transform: translateY(-1px);
 }
 
-.hero-partner-gd-icon {
+.hero-partner-brand-icon {
   flex-shrink: 0;
-  color: #1DB846;
+  color: var(--accent);
 }
 
-.hero-partner-gd-name {
+.hero-partner-brand-name {
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
   font-size: 13px;
@@ -445,7 +445,7 @@ a.hp-card.hp-avail:focus-visible {
   letter-spacing: -0.01em;
 }
 
-.hero-partner-gd-ext {
+.hero-partner-brand-ext {
   color: rgba(148, 163, 184, 0.4);
   margin-left: 1px;
 }
@@ -678,6 +678,140 @@ a.hp-card.hp-avail:focus-visible {
   margin: calc(-1 * var(--sp-3)) 0 var(--sp-6);
 }
 
+/* ─── Shared shortlist (Phase 3: no-backend share links) ──── */
+
+.shared-list-panel {
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-md);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-6);
+}
+
+.shared-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.shared-list-head h2 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.shared-list-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.shared-list-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.shared-list-dismiss:hover { background: var(--surface-raised); color: var(--text-primary); }
+.shared-list-dismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.shared-list-sub {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 6px 0 var(--sp-4);
+}
+
+.shared-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.shared-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.shared-list-item-name {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.shared-list-item-name .shared-list-item-tld {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.shared-list-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.shared-list-save-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.shared-list-save-btn:hover { border-color: var(--accent); color: var(--accent); }
+.shared-list-save-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shared-list-save-btn.is-saved { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.shared-list-register {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 164, 166, 0.3);
+  transition: background 0.15s ease;
+}
+.shared-list-register:hover { background: var(--accent-dim); }
+.shared-list-register:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+  .shared-list-item { flex-wrap: wrap; }
+  .shared-list-item-name { width: 100%; }
+}
+
 /* ─── Progress bar ────────────────────────────────────────── */
 
 .progress-overview {
@@ -759,6 +893,31 @@ textarea.is-invalid, input.is-invalid {
   font-weight: 500;
 }
 
+.description-meta {
+  display: flex;
+  align-items: flex-start;
+  margin: calc(var(--sp-4) * -1) 0 var(--sp-4);
+}
+
+.description-meta .field-error {
+  margin: 0;
+}
+
+.char-counter {
+  margin-left: auto;
+  padding-left: var(--sp-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.char-counter.is-near-limit {
+  color: var(--warning);
+  font-weight: 600;
+}
+
 .field-help {
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -781,6 +940,7 @@ textarea.is-invalid, input.is-invalid {
 }
 
 .tone-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -802,10 +962,33 @@ textarea.is-invalid, input.is-invalid {
   pointer-events: none;
 }
 
+.tone-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
 .tone-card:has(input:checked) {
   border-color: var(--accent);
   background: linear-gradient(135deg, #f0fdfd, var(--surface));
   box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-xs);
+}
+
+.tone-card:has(input:checked) .tone-check {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .tone-card:hover:not(:has(input:checked)) {
@@ -992,7 +1175,7 @@ textarea.is-invalid, input.is-invalid {
 
 .stepper { display: flex; flex-direction: column; }
 
-.step { display: flex; gap: 20px; }
+.step { display: flex; gap: 22px; }
 
 /* Track: circle + connector line */
 .step-track {
@@ -1000,19 +1183,19 @@ textarea.is-invalid, input.is-invalid {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
-  width: 40px;
+  width: 48px;
 }
 
 .step-circle {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   border: 2px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-muted);
   background: var(--surface);
@@ -1021,6 +1204,10 @@ textarea.is-invalid, input.is-invalid {
               color 0.25s ease, box-shadow 0.25s ease;
   position: relative;
   z-index: 1;
+  /* Punches a halo through the connector line behind it, so the rail reads
+     as running continuously through the whole journey rather than stopping
+     and restarting awkwardly at each circle. */
+  box-shadow: 0 0 0 6px var(--bg);
 }
 
 .step-circle .step-check { display: none; font-style: normal; }
@@ -1091,12 +1278,12 @@ textarea.is-invalid, input.is-invalid {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
-  box-shadow: 0 0 0 5px var(--accent-glow), var(--shadow-sm);
+  box-shadow: 0 0 0 6px var(--bg), 0 0 0 11px var(--accent-glow), var(--shadow-sm);
 }
 
 .step.is-active .step-title {
   color: var(--text-primary);
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .step.is-active .step-help { color: var(--text-secondary); }
@@ -1130,7 +1317,7 @@ textarea.is-invalid, input.is-invalid {
   background: var(--success);
   border-color: var(--success);
   color: #fff;
-  box-shadow: none;
+  box-shadow: 0 0 0 6px var(--bg);
 }
 
 .step.is-done .step-circle .step-num  { display: none; }
@@ -1177,19 +1364,100 @@ textarea.is-invalid, input.is-invalid {
 
 .progress-block .btn-secondary { margin-left: auto; flex-shrink: 0; }
 
+.progress-block-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-subtext {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Same conic-gradient ring language as the brand-score gauge, instead of a
+   plain border-spin -- one visual idea ("a ring shows progress/status")
+   used consistently for both a literal loading state and a score. */
 .spinner {
-  width: 18px;
-  height: 18px;
-  border: 2.5px solid var(--border);
-  border-top-color: var(--accent);
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: conic-gradient(var(--accent) 0deg 270deg, var(--border) 270deg 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .spinner { animation: spin 0.75s linear infinite; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Post-register upsell banner ────────────────────────── */
+/* Shown once someone has actually clicked to register a domain -- "you
+   just picked a name" is the moment building-the-site next makes sense,
+   not before. Dismissible so it doesn't nag on repeat visits. */
+
+.upsell-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  background: var(--accent-dim);
+  border: 1.5px solid rgba(0, 164, 166, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.upsell-banner-icon { font-size: 18px; line-height: 1; flex-shrink: 0; }
+
+.upsell-banner-text {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.upsell-banner-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.upsell-banner-actions a {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent-hover);
+  background: var(--surface);
+  border: 1px solid rgba(0, 164, 166, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.upsell-banner-actions a:hover { background: var(--accent-dim); }
+.upsell-banner-actions a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.upsell-banner-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.upsell-banner-close:hover { background: rgba(0, 164, 166, 0.15); color: var(--accent-hover); }
+.upsell-banner-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ─── Name cards grid ─────────────────────────────────────── */
 
@@ -1252,13 +1520,14 @@ textarea.is-invalid, input.is-invalid {
 @media (max-width: 560px) { .results-grid { grid-template-columns: 1fr; } }
 
 .name-card {
+  position: relative;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--sp-4) var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   cursor: pointer;
   text-align: left;
   color: inherit;
@@ -1282,90 +1551,98 @@ textarea.is-invalid, input.is-invalid {
   transform: none;
 }
 
-.name-card .wordmark {
+.card-top-row { display: flex; align-items: center; }
+
+.card-style-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.card-style-tag.brandable { color: var(--c-brandable); }
+.card-style-tag.literal   { color: var(--c-literal); }
+.card-style-tag.compound  { color: var(--c-compound); }
+.card-style-tag.wordplay  { color: var(--c-wordplay); }
+
+.card-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.card-name {
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
-  font-size: 20px;
+  font-size: 21px;
   letter-spacing: -0.01em;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  row-gap: 4px;
-  gap: var(--sp-2);
   color: var(--text-primary);
-}
-
-.wordmark-text {
   overflow-wrap: anywhere;
+  min-width: 0;
 }
 
-.style-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.style-dot.brandable { background: var(--c-brandable); }
-.style-dot.literal   { background: var(--c-literal); }
-.style-dot.compound  { background: var(--c-compound); }
-.style-dot.wordplay  { background: var(--c-wordplay); }
-
-.wordmark-text { flex: 1; min-width: 0; }
-
+/* A partial-ring gauge (conic-gradient) instead of a text pill -- glanceable
+   at 50-card scale, and it frees the name row from competing with a wide
+   label for space. --pct and the color are set inline per score/band. */
 .brand-score-badge {
   flex-shrink: 0;
   display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 4px 8px;
-  border-radius: 99px;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
   border: none;
-  font-family: inherit;
+  padding: 0;
   cursor: pointer;
-  white-space: nowrap;
+  background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), var(--border) 0);
   transition: filter 0.12s ease;
 }
 .brand-score-badge:hover,
 .brand-score-badge:focus-visible {
-  filter: brightness(0.96);
+  filter: brightness(0.94);
 }
 .brand-score-badge:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .brand-score-badge[aria-expanded="true"] {
-  filter: brightness(0.92);
+  filter: brightness(0.9);
 }
-.brand-score-badge.good { background: var(--success-dim); color: var(--success); }
-.brand-score-badge.ok   { background: var(--warning-dim); color: var(--warning); }
-.brand-score-badge.low  { background: var(--danger-dim);  color: var(--danger); }
+.brand-score-badge.good { --ring-color: var(--success); }
+.brand-score-badge.ok   { --ring-color: var(--warning); }
+.brand-score-badge.low  { --ring-color: var(--danger); }
+
+.brand-score-ring-inner {
+  width: calc(100% - 7px);
+  height: calc(100% - 7px);
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
 
 .brand-score-num {
   font-family: 'IBM Plex Mono', monospace;
   font-weight: 700;
-}
-
-.brand-score-max {
-  font-family: 'IBM Plex Mono', monospace;
-  font-weight: 600;
-  font-size: 0.85em;
-  opacity: 0.65;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ring-color);
 }
 
 .brand-score-label {
   font-family: 'Inter', sans-serif;
+  font-style: normal;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  font-size: 9px;
-  opacity: 0.85;
-}
-
-.brand-score-info {
-  display: inline-flex;
-  align-items: center;
-  opacity: 0.55;
-}
-.brand-score-info svg {
-  width: 11px;
-  height: 11px;
+  letter-spacing: 0.02em;
+  font-size: 7px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1;
 }
 
 /* ─── Brand score popover (click-to-open, works on touch) ───── */
@@ -1488,57 +1765,69 @@ textarea.is-invalid, input.is-invalid {
   flex: 1;
 }
 
-.card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+/* A quiet text line instead of a row of bordered pills -- descriptive
+   metadata, not something that should compete visually with the name,
+   the score, or the availability/price strip below it. */
+.card-tags-line {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
 }
 
-.card-tag {
-  font-family: 'Inter', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  padding: 2px 8px;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.name-card:hover:not(:disabled) .card-tag {
-  background: var(--accent-dim);
-  border-color: rgba(0, 164, 166, 0.25);
-  color: var(--accent-hover);
-}
-
-/* ─── Name card footer (GoDaddy CTA) ─────────────── */
+/* ─── Name card footer (Dynadot CTA) ─────────────── */
 
 .card-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: var(--sp-2);
-  margin-top: var(--sp-2);
-  padding-top: var(--sp-2);
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-3);
   border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-.card-register-cta {
+.card-footer-cta {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--text-xs);
-  font-weight: 600;
   color: var(--accent);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.name-card:hover:not(:disabled) .card-register-cta {
+.name-card:hover:not(:disabled) .card-footer-cta {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.card-footer-taken { justify-content: flex-start; }
+
+.card-taken-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* Marks the single highest-scoring available card in the grid -- not
+   everything should compete equally for attention, and it reuses the same
+   accent rather than introducing a second "featured" color. */
+.card-ribbon {
+  position: absolute;
+  top: -11px;
+  left: var(--sp-4);
+  background: var(--accent);
+  color: #fff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 99px;
+  box-shadow: 0 2px 6px rgba(0, 164, 166, 0.4);
 }
 
 
@@ -1552,15 +1841,16 @@ textarea.is-invalid, input.is-invalid {
   .progress-overview { margin-bottom: var(--sp-6); }
 
   /* Tighter step track */
-  .step { gap: 14px; }
+  .step { gap: 16px; }
 
   .step-circle {
-    width: 36px;
-    height: 36px;
-    font-size: 12px;
+    width: 40px;
+    height: 40px;
+    font-size: 13px;
+    box-shadow: 0 0 0 4px var(--bg);
   }
 
-  .step-track { width: 36px; }
+  .step-track { width: 40px; }
 
   /* Active step card — tighter padding */
   .step.is-active .step-body {
@@ -1581,14 +1871,18 @@ textarea.is-invalid, input.is-invalid {
 
 @media (max-width: 400px) {
   .step-circle {
-    width: 32px;
-    height: 32px;
-    font-size: 11px;
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+    box-shadow: 0 0 0 3px var(--bg);
   }
-  .step-track { width: 32px; }
+  .step-track { width: 34px; }
   .step { gap: 12px; }
   .step.is-active .step-circle {
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 6px var(--accent-glow);
+  }
+  .step.is-done .step-circle {
+    box-shadow: 0 0 0 3px var(--bg);
   }
 }
 
@@ -1606,8 +1900,8 @@ textarea.is-invalid, input.is-invalid {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: var(--sp-2) var(--sp-3);
-  min-width: 62px;
+  padding: var(--sp-3) var(--sp-3) 10px;
+  min-width: 68px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -1643,6 +1937,19 @@ textarea.is-invalid, input.is-invalid {
   box-shadow: var(--shadow-sm);
 }
 
+/* Disabled (non-editing) chips: still show which extensions are checked,
+   but read as inert rather than clickable -- avoids implying a toggle will
+   change anything when nothing is listening for it outside edit mode. */
+.tld-chip:has(input:disabled):not(.is-locked) {
+  cursor: default;
+  opacity: 0.6;
+  box-shadow: none;
+}
+.tld-chip:has(input:disabled):not(.is-locked):hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
 .tld-ext {
   font-family: 'IBM Plex Mono', monospace;
   font-size: var(--text-sm);
@@ -1662,31 +1969,103 @@ textarea.is-invalid, input.is-invalid {
   line-height: 1.3;
 }
 
+.tld-price {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
 #tld-chips { margin-bottom: var(--sp-4); }
+
+.tld-chips-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
+}
+.tld-chips-hint strong { color: var(--text-secondary); font-weight: 600; }
+.step.is-editing .tld-chips-hint { display: none; }
 
 /* ─── TLD status pills (Step 4 name cards) ───────────────── */
 
 .tld-status-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
 }
 
 .tld-pill {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 4px 9px;
   border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tld-pill.available { background: var(--success-dim); color: var(--success); }
-.tld-pill.taken     { background: var(--danger-dim);  color: var(--danger); opacity: 0.55; }
-.tld-pill.unknown   { background: var(--surface-raised); color: var(--text-muted); }
+/* Muted, not alarm-red: a taken name isn't an error, just information --
+   red was reading as a warning for something entirely routine. */
+.tld-pill.taken {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--border-strong);
+}
+.tld-pill.unknown { background: var(--surface-raised); color: var(--text-muted); }
+
+/* Price, shown only where a verified USD figure exists (see TLD_PRICING) --
+   quieter than the extension itself so the hierarchy stays name-first. */
+.tld-pill-price {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+/* Unresolvable TLDs (no public registry RDAP -- e.g. .io/.co) still get a
+   real CTA instead of reading as a dead end: these are often the highest
+   commercial-intent extensions, so "Unknown" shouldn't mean "don't click." */
+.tld-pill.unknown-cta {
+  background: var(--accent-dim);
+  color: var(--accent-hover);
+  border: 1px solid rgba(0, 164, 166, 0.3);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.tld-pill.unknown-cta:hover,
+.tld-pill.unknown-cta:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.tld-pill.unknown-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tld-pill.unknown-cta svg { width: 8px; height: 8px; flex-shrink: 0; }
 
 
 /* ─── Accessibility ───────────────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -1699,15 +2078,71 @@ textarea.is-invalid, input.is-invalid {
 
 .name-card-wrap {
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .name-card-wrap .name-card {
   width: 100%;
-  height: 100%;
+  /* flex (not height:100%) so a taken card's footer sibling below it can
+     take its own natural height, with the card filling the rest -- an
+     available card (no footer sibling) still fills the wrap exactly as
+     before. */
+  flex: 1 1 auto;
 }
 
-.name-card-wrap .wordmark {
+.name-card-wrap .card-top-row {
   padding-right: 64px;
+  min-height: 20px;
+}
+
+/* A taken card's footer lives outside the (disabled) button as a real
+   sibling -- see the JS comment where it's built -- but reads as one
+   seamless card by removing the shared edge and matching the corners. */
+.name-card.is-taken {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
+  padding-bottom: var(--sp-3);
+}
+
+.card-taken-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-top: 1px dashed var(--border-strong);
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.card-taken-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.card-taken-footer-link:hover {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+  background: var(--accent-dim);
+}
+.card-taken-footer-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ─── Save (bookmark) button on name cards ───────────────── */
@@ -2070,6 +2505,60 @@ textarea.is-invalid, input.is-invalid {
   gap: var(--sp-2);
 }
 
+.saved-panel-footer {
+  flex-shrink: 0;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.saved-panel-bulk-btn {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.saved-panel-bulk-btn:hover { background: var(--accent-hover); }
+.saved-panel-bulk-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.saved-panel-bulk-btn.is-copied { background: var(--success); }
+
+.saved-panel-bulk-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.saved-panel-share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: var(--text-xs);
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.saved-panel-share-btn:hover { color: var(--text-primary); border-color: var(--border-strong); background: var(--surface-raised); }
+.saved-panel-share-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.saved-panel-share-btn.is-copied { color: var(--success); border-color: var(--success); }
+
 .saved-panel-empty {
   padding: var(--sp-7) var(--sp-5);
   display: flex;
@@ -2238,6 +2727,7 @@ textarea.is-invalid, input.is-invalid {
 }
 
 .category-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2252,6 +2742,29 @@ textarea.is-invalid, input.is-invalid {
   font: inherit;
   color: inherit;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.cat-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.category-card.is-selected .cat-check {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .category-card:hover:not(.is-selected) {

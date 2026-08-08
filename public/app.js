@@ -1,7 +1,34 @@
-// ---------- GoDaddy registrar ----------
+// ---------- Dynadot registrar ----------
+// URL pattern is Dynadot's own published schema.org SearchAction template
+// (https://www.dynadot.com/domain/search?domain={search_term_string}),
+// confirmed live against dynadot.com.
 
-const GODADDY = {
-  searchUrl: (d) => `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(d)}`,
+const DYNADOT = {
+  searchUrl: (d) => `https://www.dynadot.com/domain/search?domain=${encodeURIComponent(d)}`,
+  // Separate from the registration search above -- this is Dynadot's
+  // aftermarket/backorder tool (auctions, expired domains, listings),
+  // confirmed live by querying it directly (not published via schema.org
+  // like the registration search is, but verified to return real listing
+  // results, not just a static page).
+  marketSearchUrl: (d) => `https://www.dynadot.com/market/search?domain=${encodeURIComponent(d)}`,
+};
+
+// Manually-verified USD registration prices, checked directly against each
+// TLD's dynadot.com page (not an API -- there's no Dynadot API key wired up
+// yet). Showing a real number next to an available extension is meant to
+// cut bounce-before-click: uncertainty about price is a classic reason
+// people abandon an outbound click before landing on the registrar.
+// .ai/.net/.org are deliberately omitted: unauthenticated fetches of those
+// pages returned inconsistent currencies (EUR vs USD) across requests, so
+// rather than guess or silently convert, no price is shown for them until
+// there's a reliable USD source. Re-verify the rest periodically -- prices
+// change and sales expire.
+const TLD_PRICING = {
+  com: { usd: 10.88, verified: '2026-08-09' },
+  io:  { usd: 28.89, verified: '2026-08-09' },
+  co:  { usd: 3.48,  verified: '2026-08-09' },
+  app: { usd: 9.99,  verified: '2026-08-09' },
+  dev: { usd: 8.00,  verified: '2026-08-09' },
 };
 
 // ---------- Icons ----------
@@ -76,6 +103,42 @@ function clearWizardState() {
   } catch {}
 }
 
+// ---------- Funnel-stage event logging (roadmap Phase 0) ----------
+// A random, non-identifying id groups every event from one visit into a
+// single funnel, so drop-off between steps is visible server-side -- not
+// just final registrar clicks. Session-scoped like the wizard draft above.
+
+const SESSION_ID_KEY = 'typingname_session_id';
+
+function getSessionId() {
+  try {
+    let id = sessionStorage.getItem(SESSION_ID_KEY);
+    if (!id) {
+      id = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(SESSION_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return 'no-session-storage';
+  }
+}
+
+// sendBeacon survives the page unloading (e.g. the click that navigates to
+// Dynadot) far more reliably than a fetch() that gets cancelled mid-flight;
+// fetch is only the fallback for browsers/contexts without it.
+function logEvent(type, data) {
+  const payload = JSON.stringify({ type, sessionId: getSessionId(), data: data || {} });
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      if (navigator.sendBeacon('/api/log-event', blob)) return;
+    }
+  } catch {}
+  fetch('/api/log-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+}
+
 // ---------- Saved domains (bookmark) ----------
 
 const SAVED_DOMAINS_KEY = 'typingname_saved_domains';
@@ -106,6 +169,7 @@ function toggleSavedDomain(name, tld, brandScore) {
     state.savedDomains.splice(idx, 1);
   } else {
     state.savedDomains.push({ name, tld, brand_score: brandScore || null });
+    logEvent('name_saved', { name, tld });
   }
   persistSavedDomains();
   updateSavedFab();
@@ -150,6 +214,8 @@ function renderSavedPanel() {
   const body = document.getElementById('saved-panel-body');
   body.innerHTML = '';
 
+  document.getElementById('saved-panel-footer').hidden = state.savedDomains.length === 0;
+
   if (state.savedDomains.length === 0) {
     body.innerHTML = `
       <div class="saved-panel-empty">
@@ -171,7 +237,7 @@ function renderSavedPanel() {
         </div>
         <div class="saved-item-actions">
           ${renderScoreBadge(d.brand_score)}
-          <a class="saved-item-register" href="${GODADDY.searchUrl(domain)}" target="_blank" rel="noopener noreferrer">Register ${ICONS.externalLink}</a>
+          <a class="saved-item-register" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer">Register ${ICONS.externalLink}</a>
           <button type="button" class="saved-item-remove" data-remove="${escapeHtml(d.name)}" aria-label="Remove ${escapeHtml(d.name)} from saved">${ICONS.close}</button>
         </div>
       </div>
@@ -211,6 +277,121 @@ document.getElementById('saved-panel-body').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-remove]');
   if (btn) removeSavedDomain(btn.dataset.remove);
 });
+
+// Dynadot's bulk search has no documented/discoverable URL that pre-fills
+// multiple domains (confirmed against their bulk-search tool and its page
+// source) -- it only accepts pasted text or a CSV upload. So instead of
+// guessing at a URL that doesn't exist, this copies a ready-to-paste list
+// and opens their real bulk-search page for the user to paste into.
+document.getElementById('saved-panel-bulk-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const list = state.savedDomains.map((d) => `${d.name}.${d.tld}`).join(', ');
+  try {
+    await navigator.clipboard.writeText(list);
+    const original = btn.textContent;
+    btn.textContent = 'Copied — paste it into Dynadot';
+    btn.classList.add('is-copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('is-copied');
+    }, 2000);
+  } catch {}
+  window.open('https://www.dynadot.com/domain/bulk-search', '_blank', 'noopener');
+  logEvent('bulk_register_clicked', { count: state.savedDomains.length });
+});
+
+// ---------- Share a saved shortlist (no backend needed) ----------
+// Domains are encoded straight into the URL query string -- no server
+// storage required, so a shared link works today with zero new infra.
+
+const MAX_SHARED_ITEMS = 30;
+
+function encodeSharedList(domains) {
+  return domains.slice(0, MAX_SHARED_ITEMS).map((d) => `${d.name}.${d.tld}`).join(',');
+}
+
+function decodeSharedList(raw) {
+  if (!raw) return [];
+  const seen = new Set();
+  return raw.split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .map((entry) => {
+      const dot = entry.lastIndexOf('.');
+      if (dot <= 0) return null;
+      const name = entry.slice(0, dot).replace(/[^a-z0-9-]/g, '');
+      const tld = entry.slice(dot + 1).replace(/[^a-z0-9-]/g, '');
+      if (!name || !tld) return null;
+      return { name, tld };
+    })
+    .filter((d) => d && !seen.has(`${d.name}.${d.tld}`) && seen.add(`${d.name}.${d.tld}`))
+    .slice(0, MAX_SHARED_ITEMS);
+}
+
+document.getElementById('saved-panel-share-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const encoded = encodeSharedList(state.savedDomains);
+  const shareUrl = `${location.origin}${location.pathname}?shared=${encodeURIComponent(encoded)}`;
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    const original = btn.textContent;
+    btn.textContent = 'Link copied';
+    btn.classList.add('is-copied');
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.classList.remove('is-copied');
+    }, 2000);
+  } catch {}
+  logEvent('shared_list_created', { count: Math.min(state.savedDomains.length, MAX_SHARED_ITEMS) });
+});
+
+function renderSharedListPanel(items) {
+  const itemsEl = document.getElementById('shared-list-items');
+  document.getElementById('shared-list-count').textContent = `(${items.length})`;
+
+  itemsEl.innerHTML = items.map((d) => {
+    const domain = `${d.name}.${d.tld}`;
+    const price = TLD_PRICING[d.tld];
+    const priceHtml = price ? ` <span class="tld-pill-price">$${price.usd.toFixed(2)}</span>` : '';
+    const saved = isDomainSaved(d.name);
+    return `
+      <div class="shared-list-item">
+        <span class="shared-list-item-name">${escapeHtml(d.name)}<span class="shared-list-item-tld">.${escapeHtml(d.tld)}</span></span>
+        <div class="shared-list-item-actions">
+          <button type="button" class="shared-list-save-btn${saved ? ' is-saved' : ''}" data-shared-save="${escapeHtml(d.name)}" data-shared-tld="${escapeHtml(d.tld)}" aria-pressed="${saved}" aria-label="${saved ? 'Remove' : 'Save'} ${escapeHtml(d.name)}">${saved ? ICONS.bookmarkFilled : ICONS.bookmarkOutline}</button>
+          <a class="shared-list-register" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer">Register${priceHtml} ${ICONS.externalLink}</a>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('shared-list-items').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-shared-save]');
+  if (!btn) return;
+  toggleSavedDomain(btn.dataset.sharedSave, btn.dataset.sharedTld, null);
+  const nowSaved = isDomainSaved(btn.dataset.sharedSave);
+  btn.classList.toggle('is-saved', nowSaved);
+  btn.setAttribute('aria-pressed', String(nowSaved));
+  btn.innerHTML = nowSaved ? ICONS.bookmarkFilled : ICONS.bookmarkOutline;
+});
+
+document.getElementById('shared-list-dismiss').addEventListener('click', () => {
+  document.getElementById('shared-list-panel').hidden = true;
+  // Clean the URL so refreshing doesn't just bring the same list right back.
+  history.replaceState({}, '', location.pathname);
+});
+
+function initSharedListFromUrl() {
+  const raw = new URLSearchParams(location.search).get('shared');
+  if (!raw) return;
+  const items = decodeSharedList(raw);
+  if (items.length === 0) return;
+  renderSharedListPanel(items);
+  document.getElementById('shared-list-panel').hidden = false;
+  logEvent('shared_list_viewed', { count: items.length });
+}
+
+initSharedListFromUrl();
 
 updateSavedFab();
 
@@ -292,7 +473,10 @@ function setSummary(stepNum, html) {
 }
 
 function updateOverallProgress(activeStep) {
-  const pct = Math.round(((activeStep - 1) / TOTAL_STEPS) * 100);
+  // Divide by TOTAL_STEPS - 1 (not TOTAL_STEPS) so reaching the last step
+  // itself reads as 100% -- otherwise "Choose your domain" (step 4 of 4)
+  // would still show a 75%-full bar, implying an invisible 5th step.
+  const pct = Math.round(((activeStep - 1) / (TOTAL_STEPS - 1)) * 100);
   document.getElementById('progress-fill').style.width = `${pct}%`;
   document.getElementById('progress-label').textContent = `Step ${activeStep} of ${TOTAL_STEPS}`;
 }
@@ -301,6 +485,26 @@ function markAllDoneProgress() {
   document.getElementById('progress-fill').style.width = '100%';
   document.getElementById('progress-label').textContent = 'Done';
 }
+
+// Post-register upsell (roadmap Phase 1): shown once someone has actually
+// clicked to register a domain, not before -- "I just picked a name" is
+// the moment Website Builder / Email makes sense as a next step.
+let upsellDismissed = false;
+
+function showUpsellBanner() {
+  if (upsellDismissed) return;
+  document.getElementById('upsell-banner').hidden = false;
+}
+
+document.getElementById('upsell-banner-close').addEventListener('click', () => {
+  upsellDismissed = true;
+  document.getElementById('upsell-banner').hidden = true;
+});
+
+document.getElementById('upsell-banner').addEventListener('click', (e) => {
+  const link = e.target.closest('[data-upsell]');
+  if (link) logEvent('upsell_clicked', { product: link.dataset.upsell });
+});
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -315,7 +519,9 @@ function resetStepsFrom(n) {
     if (i === 2) {
       document.getElementById('generate-progress').classList.remove('is-error');
       document.getElementById('generate-progress').innerHTML =
-        '<div class="spinner"></div><span class="progress-text">Crafting names around your idea…</span>';
+        '<div class="spinner"></div><div class="progress-block-text">'
+        + '<span class="progress-text">Crafting names around your idea…</span>'
+        + '<span class="progress-subtext">Usually 10-20s for 50 tailored names.</span></div>';
     }
     if (i === 3) {
       const progress = document.getElementById('availability-progress');
@@ -324,6 +530,10 @@ function resetStepsFrom(n) {
       progress.innerHTML = '<div class="spinner"></div><span class="progress-text">Checking availability…</span>';
       document.querySelector('.step[data-step="3"] .step-help').textContent =
         'Select the extensions to check — .com is always included.';
+      // setStepState('pending') strips the is-editing class directly, which
+      // would otherwise leave the TLD chips stuck enabled if step 3 happened
+      // to be mid-edit when this reset was triggered (e.g. editing step 1).
+      setTldChipsInteractive(false);
     }
     if (i === 4) {
       document.getElementById('results').innerHTML = '';
@@ -348,6 +558,8 @@ const descriptionInput = document.getElementById('description');
 const describeSubmit = document.getElementById('describe-submit');
 const describeError = document.getElementById('description-error');
 const btnFindCategory = document.getElementById('btn-find-category');
+const descriptionCounter = document.getElementById('description-counter');
+const DESCRIPTION_MAX_LEN = 500;
 
 function getSelectedTone() {
   const checked = document.querySelector('input[name="tone"]:checked');
@@ -361,8 +573,20 @@ function getSelectedTlds() {
 }
 
 function validateDescription() {
-  const valid = descriptionInput.value.trim().length >= 3;
+  const value = descriptionInput.value.trim();
+  const valid = value.length >= 3;
   btnFindCategory.disabled = !valid;
+
+  // Only surface the error once the user has started typing but hasn't
+  // reached the minimum yet -- a blank field on first load needs no nagging.
+  const showError = value.length > 0 && !valid;
+  descriptionInput.classList.toggle('is-invalid', showError);
+  describeError.hidden = !showError;
+
+  const len = descriptionInput.value.length;
+  descriptionCounter.textContent = `${len} / ${DESCRIPTION_MAX_LEN}`;
+  descriptionCounter.classList.toggle('is-near-limit', len >= DESCRIPTION_MAX_LEN - 20);
+
   return valid;
 }
 
@@ -370,14 +594,7 @@ function updateDescribeSubmit() {
   describeSubmit.disabled = state.category.trim().length === 0;
 }
 
-descriptionInput.addEventListener('input', () => {
-  if (descriptionInput.classList.contains('is-invalid') && validateDescription()) {
-    descriptionInput.classList.remove('is-invalid');
-    describeError.hidden = true;
-  } else {
-    validateDescription();
-  }
-});
+descriptionInput.addEventListener('input', validateDescription);
 
 // Phase A → Phase B: fetch categories
 btnFindCategory.addEventListener('click', () => {
@@ -482,6 +699,7 @@ function renderCategoryCards(categories) {
     card.className = 'category-card';
     card.dataset.category = cat.name;
     card.innerHTML = `
+      <span class="cat-check" aria-hidden="true">✓</span>
       <span class="cat-icon">${escapeHtml(cat.icon)}</span>
       <span class="cat-name">${escapeHtml(cat.name)}</span>
       <span class="cat-desc">${escapeHtml(cat.description)}</span>
@@ -537,6 +755,8 @@ document.getElementById('describe-form').addEventListener('submit', (e) => {
     <button type="button" class="btn-edit" data-edit-step="1">${ICONS.edit} Edit</button>
   `);
 
+  logEvent('step1_completed', { category: state.category, tone: state.tone, wasEditing });
+
   state.step = 2;
   persistWizardState();
   showStartOverButton();
@@ -576,9 +796,10 @@ function handleEditStep(stepNum) {
       return;
     }
 
+    setTldChipsInteractive(true);
     // Reflect the last-checked extensions back onto the chip inputs.
     document.querySelectorAll('input[name="tld"]').forEach((cb) => {
-      if (!cb.disabled) cb.checked = state.selectedTlds.includes(cb.value);
+      if (cb.value !== 'com') cb.checked = state.selectedTlds.includes(cb.value);
     });
 
     step3.classList.add('is-editing');
@@ -594,6 +815,7 @@ function leaveEditMode() {
 
 function leaveEditModeStep3() {
   document.querySelector('.step[data-step="3"]').classList.remove('is-editing');
+  setTldChipsInteractive(false);
 }
 
 document.getElementById('step3-cancel-btn').addEventListener('click', leaveEditModeStep3);
@@ -609,6 +831,17 @@ document.getElementById('step3-recheck-btn').addEventListener('click', () => {
   checkAvailability();
 });
 
+// The TLD chips only ever take effect via the "Change" > "Recheck" flow, so
+// they stay disabled (and visually inert) outside of edit mode -- otherwise
+// toggling one looks like it should do something on the very first,
+// automatic check, when in fact nothing is listening yet.
+function setTldChipsInteractive(enabled) {
+  document.querySelectorAll('input[name="tld"]').forEach((cb) => {
+    if (cb.value === 'com') return; // permanently locked/checked
+    cb.disabled = !enabled;
+  });
+}
+
 function scrollToStep(n) {
   const el = document.querySelector(`.step[data-step="${n}"]`);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -619,6 +852,15 @@ function attachEditHandler() { /* replaced by stepper delegate above */ }
 // ---------- Step 2: generate names ----------
 
 async function generateNames() {
+  // A real (non-demo) call for 50 names can run past the "usually 10-20s"
+  // estimate shown up front -- if it does, swap in a message that confirms
+  // the app is still working rather than leaving the original estimate
+  // sitting there looking stale/wrong.
+  const reassureTimer = setTimeout(() => {
+    const text = document.querySelector('#generate-progress .progress-text');
+    if (text) text.textContent = 'Still crafting your list — quality names take a little longer…';
+  }, 15000);
+
   try {
     const res = await fetch('/api/generate-names', {
       method: 'POST',
@@ -643,6 +885,8 @@ async function generateNames() {
     setStepState(2, 'done');
     setSummary(2, `<span>${data.candidates.length} names generated</span>`);
 
+    logEvent('names_generated', { count: data.candidates.length, demoMode: !!data.demoMode });
+
     state.step = 3;
     persistWizardState();
 
@@ -657,6 +901,8 @@ async function generateNames() {
     checkAvailability();
   } catch (err) {
     showBlockError('generate-progress', err.message, generateNames);
+  } finally {
+    clearTimeout(reassureTimer);
   }
 }
 
@@ -696,6 +942,8 @@ async function checkAvailability() {
       <button type="button" class="btn-edit" data-edit-step="3">${ICONS.edit} Change</button>
     `);
 
+    logEvent('availability_checked', { availableCount, tlds: state.selectedTlds });
+
     state.step = 4;
     persistWizardState();
     showStartOverButton();
@@ -724,6 +972,7 @@ function scoreBand(total) {
 function renderScoreBadge(score) {
   if (!score || typeof score.total !== 'number') return '';
   const band = scoreBand(score.total);
+  const pct = Math.max(0, Math.min(100, score.total));
   const breakdown = [
     `Short & catchy ${score.length}/100`,
     `Easy to say ${score.pronounceability}/100`,
@@ -733,16 +982,19 @@ function renderScoreBadge(score) {
   // A real <button> here would nest inside the surrounding name-card
   // button (invalid HTML) and double-fire on click; role="button" keeps
   // it tappable/keyboard-accessible without nesting interactive controls.
+  // A partial-ring gauge reads as glanceable at 50-card scale in a way a
+  // text pill doesn't, and frees up horizontal space next to the name.
   return `
-    <span class="brand-score-badge ${band}" role="button" tabindex="0"
+    <span class="brand-score-badge ${band}" role="button" tabindex="0" style="--pct:${pct}"
       data-total="${score.total}" data-length="${score.length}" data-pronounceability="${score.pronounceability}"
       data-memorability="${score.memorability}" data-distinctiveness="${score.distinctiveness}"
       aria-haspopup="dialog" aria-expanded="false"
       aria-label="Brand score: ${score.total} out of 100, ${SCORE_BANDS[band].label}. Tap for details."
       title="Brand Score ${score.total}/100 — ${breakdown}">
-      <span class="brand-score-num">${score.total}<span class="brand-score-max">/100</span></span>
-      <span class="brand-score-label">${SCORE_BANDS[band].label}</span>
-      <span class="brand-score-info" aria-hidden="true">${ICONS.helpCircle}</span>
+      <span class="brand-score-ring-inner">
+        <b class="brand-score-num">${score.total}</b>
+        <em class="brand-score-label">${SCORE_BANDS[band].label}</em>
+      </span>
     </span>
   `;
 }
@@ -824,7 +1076,7 @@ function openScorePopover(badge) {
 
 // Capture phase: the badge lives inside the name-card button, so we must
 // intercept before the event bubbles up and triggers the card's own
-// click handler (which opens the GoDaddy registration tab).
+// click handler (which opens the Dynadot registration tab).
 document.addEventListener('click', (e) => {
   const badge = e.target.closest('.brand-score-badge');
   if (!badge) return;
@@ -840,6 +1092,35 @@ document.addEventListener('keydown', (e) => {
   e.stopPropagation();
   e.preventDefault();
   openScorePopover(badge);
+}, true);
+
+// Same nested-interactive-content problem as the score badge above: the
+// "check on Dynadot" pill for unresolvable TLDs (.io/.co) sits inside the
+// name-card button, so it's a role="link" span intercepted here rather
+// than a real <a>.
+function openUnknownTldCta(pill) {
+  const { name, tld } = pill.dataset;
+  if (!name || !tld) return;
+  window.open(DYNADOT.searchUrl(`${name}.${tld}`), '_blank', 'noopener');
+  showUpsellBanner();
+  logEvent('unknown_tld_checked', { name, tld, registrar: 'dynadot' });
+}
+
+document.addEventListener('click', (e) => {
+  const pill = e.target.closest('.tld-pill.unknown-cta');
+  if (!pill) return;
+  e.stopPropagation();
+  e.preventDefault();
+  openUnknownTldCta(pill);
+}, true);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const pill = e.target.closest('.tld-pill.unknown-cta');
+  if (!pill) return;
+  e.stopPropagation();
+  e.preventDefault();
+  openUnknownTldCta(pill);
 }, true);
 
 // Compact bar-chart breakdown, used where there's room to explain the score
@@ -884,6 +1165,16 @@ function renderChooseStep() {
     return bAvail - aAvail;
   });
 
+  // The single highest-scoring name that's actually available -- not
+  // everything in a 50-card grid should compete equally for attention, and
+  // a real "best of this batch" beats decorating an arbitrary card.
+  const topPickName = state.candidates
+    .filter((c) => state.selectedTlds.some((t) => (state.availability[c.name] || {})[t] === true))
+    .reduce((best, c) => {
+      const score = c.brand_score?.total || 0;
+      return !best || score > best.score ? { name: c.name, score } : best;
+    }, null)?.name;
+
   sorted.forEach((c) => {
     const tldMap = state.availability[c.name] || {};
     const anyAvailable = state.selectedTlds.some((t) => tldMap[t] === true);
@@ -891,9 +1182,13 @@ function renderChooseStep() {
     const isTaken = allTaken && !anyAvailable;
 
     const available = state.selectedTlds.filter((t) => tldMap[t] === true);
-    const bestTld = available.includes('com') ? 'com' : (available[0] || null);
-    const domain = bestTld ? `${c.name}.${bestTld}` : c.name;
-    const godaddyUrl = GODADDY.searchUrl(domain);
+    // Prefer a confirmed-available TLD (com first). If none are confirmed --
+    // e.g. .com is taken and the rest are unverifiable extensions like .io/.co
+    // that have no public RDAP -- still fall back to a real extension rather
+    // than searching Dynadot for a bare name with no TLD at all.
+    const bestTld = available.includes('com') ? 'com' : (available[0] || state.selectedTlds[0] || 'com');
+    const domain = `${c.name}.${bestTld}`;
+    const dynadotUrl = DYNADOT.searchUrl(domain);
 
     const wrap = document.createElement('div');
     wrap.className = 'name-card-wrap';
@@ -906,43 +1201,62 @@ function renderChooseStep() {
 
     const tldPills = state.selectedTlds.map((tld) => {
       const status = tldMap[tld];
-      const cls = status === true ? 'available' : status === false ? 'taken' : 'unknown';
-      return `<span class="tld-pill ${cls}">.${escapeHtml(tld)}</span>`;
+      const price = TLD_PRICING[tld];
+      const priceHtml = price ? `<span class="tld-pill-price">$${price.usd.toFixed(2)}</span>` : '';
+      const priceSpoken = price ? ` — $${price.usd.toFixed(2)}/yr` : '';
+
+      if (status === true || status === false) {
+        if (!status) return `<span class="tld-pill taken">.${escapeHtml(tld)}</span>`;
+        return `<span class="tld-pill available">.${escapeHtml(tld)}${priceHtml}</span>`;
+      }
+      // No public registry publishes live availability for this extension
+      // (e.g. .io/.co) -- a real click-out CTA instead of a dead "Unknown"
+      // label, since these are often the highest-commission extensions.
+      // role="link" (not a real <a>) because this sits inside the card's
+      // own <button>; see the brand-score-badge pattern below for why.
+      return `<span class="tld-pill unknown unknown-cta" role="link" tabindex="0"
+        data-name="${escapeHtml(c.name)}" data-tld="${escapeHtml(tld)}"
+        aria-label="Check ${escapeHtml(c.name)}.${escapeHtml(tld)} on Dynadot${priceSpoken} — no live availability data for this extension"
+        title="No live registry data for .${escapeHtml(tld)} — check on Dynadot">.${escapeHtml(tld)}${priceHtml} ${ICONS.externalLink}</span>`;
     }).join('');
 
-    const tagPills = (c.tags || []).map(
-      (t) => `<span class="card-tag">${escapeHtml(t)}</span>`
-    ).join('');
+    const tagsLine = (c.tags || []).length
+      ? `<p class="card-tags-line">${c.tags.map((t) => escapeHtml(t)).join(' · ')}</p>`
+      : '';
 
     const scoreBadge = renderScoreBadge(c.brand_score);
+    const isTopPick = !isTaken && c.name === topPickName;
 
     card.innerHTML = `
-      <div class="wordmark">
-        <span class="style-dot ${c.style}" title="${c.style}"></span>
-        <span class="wordmark-text">${escapeHtml(c.name)}</span>
+      <div class="card-top-row">
+        <span class="card-style-tag ${c.style}">${escapeHtml(c.style)}</span>
+      </div>
+      <div class="card-name-row">
+        <span class="card-name">${escapeHtml(c.name)}</span>
         ${scoreBadge}
       </div>
-      <div class="tld-status-row">${tldPills}</div>
       ${c.insight ? `<p class="card-insight">${escapeHtml(c.insight)}</p>` : ''}
-      ${tagPills ? `<div class="card-tags">${tagPills}</div>` : ''}
+      ${tagsLine}
+      <div class="tld-status-row">${tldPills}</div>
       ${!isTaken ? `
         <div class="card-footer">
-          <span class="card-register-cta">Register ${ICONS.externalLink}</span>
+          <span>Register ${escapeHtml(c.name)}.${escapeHtml(bestTld)}</span>
+          <span class="card-footer-cta">on Dynadot ${ICONS.externalLink}</span>
         </div>
       ` : ''}
+      ${isTopPick ? '<span class="card-ribbon">★ Top pick</span>' : ''}
     `;
 
     if (!isTaken) {
-      card.addEventListener('click', async () => {
+      card.addEventListener('click', () => {
         markAllDoneProgress();
-        try {
-          await fetch('/api/log-click', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: c.name, tld: bestTld || 'com', registrar: 'godaddy' }),
-          });
-        } catch {}
-        window.open(godaddyUrl, '_blank', 'noopener');
+        showUpsellBanner();
+        // Open synchronously, in the same tick as the click -- awaiting the
+        // log call first (the old behavior) risked browsers treating the
+        // popup as not user-initiated and blocking it. logEvent uses
+        // sendBeacon, so it doesn't need to be awaited at all.
+        window.open(dynadotUrl, '_blank', 'noopener');
+        logEvent('card_clicked', { name: c.name, tld: bestTld, wasUnverifiedTld: available.length === 0, registrar: 'dynadot' });
       });
     }
 
@@ -973,6 +1287,25 @@ function renderChooseStep() {
         openRiskPanel(c.name);
       });
       wrap.appendChild(riskBtn);
+    } else {
+      // The direct name is gone, but it may still be sitting in Dynadot's
+      // aftermarket (expired/backorder/listed-for-sale) -- a second
+      // monetizable path instead of a plain dead end. This is a sibling of
+      // the (disabled) card button, not a descendant -- an <a> nested
+      // inside a disabled button would be invalid HTML and unreliably
+      // clickable across browsers, same reasoning as the save/risk buttons
+      // above. Styled to read as one seamless card with the button anyway.
+      const marketDomain = `${c.name}.${bestTld}`;
+      const footer = document.createElement('div');
+      footer.className = 'card-taken-footer';
+      footer.innerHTML = `
+        <span class="card-taken-label">All checked extensions taken</span>
+        <a class="card-taken-footer-link" href="${DYNADOT.marketSearchUrl(marketDomain)}" target="_blank" rel="noopener noreferrer">Check aftermarket ${ICONS.externalLink}</a>
+      `;
+      footer.querySelector('.card-taken-footer-link').addEventListener('click', () => {
+        logEvent('aftermarket_checked', { name: c.name, tld: bestTld });
+      });
+      wrap.appendChild(footer);
     }
 
     grid.appendChild(wrap);
@@ -984,6 +1317,9 @@ function renderChooseStep() {
 (function () {
   const el = document.getElementById('hero-word');
   if (!el) return;
+  // Respect the OS-level reduced-motion preference -- leave the word
+  // (and cursor) static instead of continuously animating.
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const words = ['startup', 'SaaS product', 'marketplace', 'agency', 'mobile app', 'community', 'brand'];
   let wordIdx = 0;
@@ -1046,18 +1382,14 @@ function renderChooseStep() {
           if (!d.available) return `<div class="hp-card hp-taken">${inner}</div>`;
 
           return `
-            <a class="hp-card hp-avail" href="${GODADDY.searchUrl(domain)}" target="_blank" rel="noopener noreferrer" data-name="${escapeHtml(d.name)}" data-tld="${escapeHtml(d.tld)}" aria-label="Register ${escapeHtml(domain)} on GoDaddy">${inner}
+            <a class="hp-card hp-avail" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer" data-name="${escapeHtml(d.name)}" data-tld="${escapeHtml(d.tld)}" aria-label="Register ${escapeHtml(domain)} on Dynadot">${inner}
             </a>`;
         })
         .join('');
 
       grid.querySelectorAll('a.hp-card.hp-avail').forEach((link) => {
         link.addEventListener('click', () => {
-          fetch('/api/log-click', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: link.dataset.name, tld: link.dataset.tld, registrar: 'godaddy' }),
-          }).catch(() => {});
+          logEvent('hero_preview_click', { name: link.dataset.name, tld: link.dataset.tld, registrar: 'dynadot' });
         });
       });
     })
@@ -1085,16 +1417,26 @@ function resetStartOverButton() {
 
 // Two-stage confirm (click, then click again within a few seconds) instead
 // of a native confirm() dialog, so clearing a draft feels like part of the
-// app rather than a jarring browser popup.
+// app rather than a jarring browser popup. 6s (not the original 4s) gives
+// enough breathing room that a brief distraction doesn't silently cancel
+// the confirmation; clicking anywhere else cancels it immediately instead
+// of leaving the button sitting in its alarming "confirm" state until the
+// timeout catches up.
 startOverBtn.addEventListener('click', () => {
   if (!startOverBtn.classList.contains('is-confirming')) {
     startOverBtnLabel.textContent = 'Click to confirm';
     startOverBtn.classList.add('is-confirming');
-    startOverConfirmTimer = setTimeout(resetStartOverButton, 4000);
+    startOverConfirmTimer = setTimeout(resetStartOverButton, 6000);
     return;
   }
   clearWizardState();
   resetWizardToStart();
+  resetStartOverButton();
+});
+
+document.addEventListener('click', (e) => {
+  if (!startOverBtn.classList.contains('is-confirming')) return;
+  if (e.target === startOverBtn || startOverBtn.contains(e.target)) return;
   resetStartOverButton();
 });
 
@@ -1120,14 +1462,12 @@ function resetWizardToStart() {
   document.getElementById('custom-category').value = '';
 
   descriptionInput.value = '';
-  descriptionInput.classList.remove('is-invalid');
-  describeError.hidden = true;
-  btnFindCategory.disabled = true;
+  validateDescription();
 
   document.querySelector('input[name="tone"][value="professional"]').checked = true;
   document.getElementById('exclude').value = '';
   document.querySelectorAll('input[name="tld"]').forEach((cb) => {
-    if (!cb.disabled) cb.checked = ['io', 'co', 'ai'].includes(cb.value);
+    if (cb.value !== 'com') cb.checked = ['io', 'co', 'ai'].includes(cb.value);
   });
   document.querySelectorAll('.sort-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.sort === 'availability'));
 
@@ -1168,7 +1508,7 @@ function restoreWizardState() {
   `);
 
   document.querySelectorAll('input[name="tld"]').forEach((cb) => {
-    if (!cb.disabled) cb.checked = state.selectedTlds.includes(cb.value);
+    if (cb.value !== 'com') cb.checked = state.selectedTlds.includes(cb.value);
   });
   document.querySelectorAll('.sort-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.sort === state.sortMode));
 
@@ -1211,5 +1551,14 @@ function restoreWizardState() {
   document.getElementById('resume-banner-step').textContent = String(Math.min(state.step, 4));
   resumeBanner.hidden = false;
 }
+
+// Fire once per browser session (not on every refresh) -- getSessionId()
+// creates and persists the id in sessionStorage the first time it's called,
+// so its absence here means this is a genuinely new visit.
+let isNewSession = false;
+try {
+  isNewSession = !sessionStorage.getItem(SESSION_ID_KEY);
+} catch {}
+if (isNewSession) logEvent('session_start', { path: location.pathname });
 
 restoreWizardState();
