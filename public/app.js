@@ -636,6 +636,7 @@ function enterPhaseB(description, isRestore) {
       .find((c) => c.dataset.category === state.category);
     if (matchedCard) {
       matchedCard.classList.add('is-selected');
+      matchedCard.setAttribute('aria-pressed', 'true');
       customInput.value = '';
     } else {
       customInput.value = state.category;
@@ -698,6 +699,9 @@ function renderCategoryCards(categories) {
     card.type = 'button';
     card.className = 'category-card';
     card.dataset.category = cat.name;
+    // The checkmark badge is aria-hidden (purely visual), so without this
+    // a screen reader user has no way to tell which category is selected.
+    card.setAttribute('aria-pressed', 'false');
     card.innerHTML = `
       <span class="cat-check" aria-hidden="true">✓</span>
       <span class="cat-icon">${escapeHtml(cat.icon)}</span>
@@ -705,8 +709,12 @@ function renderCategoryCards(categories) {
       <span class="cat-desc">${escapeHtml(cat.description)}</span>
     `;
     card.addEventListener('click', () => {
-      document.querySelectorAll('.category-card').forEach((c) => c.classList.remove('is-selected'));
+      document.querySelectorAll('.category-card').forEach((c) => {
+        c.classList.remove('is-selected');
+        c.setAttribute('aria-pressed', 'false');
+      });
       card.classList.add('is-selected');
+      card.setAttribute('aria-pressed', 'true');
       document.getElementById('custom-category').value = '';
       state.category = cat.name;
       updateDescribeSubmit();
@@ -718,7 +726,10 @@ function renderCategoryCards(categories) {
 document.getElementById('custom-category').addEventListener('input', (e) => {
   const val = e.target.value.trim();
   if (val) {
-    document.querySelectorAll('.category-card').forEach((c) => c.classList.remove('is-selected'));
+    document.querySelectorAll('.category-card').forEach((c) => {
+      c.classList.remove('is-selected');
+      c.setAttribute('aria-pressed', 'false');
+    });
     state.category = val;
   } else {
     const selected = document.querySelector('.category-card.is-selected');
@@ -1102,6 +1113,7 @@ function openUnknownTldCta(pill) {
   const { name, tld } = pill.dataset;
   if (!name || !tld) return;
   window.open(DYNADOT.searchUrl(`${name}.${tld}`), '_blank', 'noopener');
+  markAllDoneProgress();
   showUpsellBanner();
   logEvent('unknown_tld_checked', { name, tld, registrar: 'dynadot' });
 }
@@ -1147,7 +1159,10 @@ document.getElementById('sort-toggle').addEventListener('click', (e) => {
   const btn = e.target.closest('.sort-btn');
   if (!btn || btn.classList.contains('is-active')) return;
   state.sortMode = btn.dataset.sort;
-  document.querySelectorAll('.sort-btn').forEach((b) => b.classList.toggle('is-active', b === btn));
+  document.querySelectorAll('.sort-btn').forEach((b) => {
+    b.classList.toggle('is-active', b === btn);
+    b.setAttribute('aria-pressed', String(b === btn));
+  });
   persistWizardState();
   if (state.candidates.length) renderChooseStep();
 });
@@ -1178,14 +1193,20 @@ function renderChooseStep() {
   sorted.forEach((c) => {
     const tldMap = state.availability[c.name] || {};
     const anyAvailable = state.selectedTlds.some((t) => tldMap[t] === true);
-    const allTaken = state.selectedTlds.every((t) => tldMap[t] === false);
-    const isTaken = allTaken && !anyAvailable;
+    // "Taken" just means nothing came back available -- it used to also
+    // require every selected TLD to individually resolve false, but .io/.co
+    // have no public RDAP and can *only* ever resolve null, so that
+    // requirement made isTaken nearly unreachable whenever they were part
+    // of the selection (the default always includes them). .com is always
+    // in the selection and always has real RDAP, so if nothing's available,
+    // .com is necessarily a confirmed "false" -- !anyAvailable alone is
+    // both sufficient and accurate.
+    const isTaken = !anyAvailable;
 
     const available = state.selectedTlds.filter((t) => tldMap[t] === true);
-    // Prefer a confirmed-available TLD (com first). If none are confirmed --
-    // e.g. .com is taken and the rest are unverifiable extensions like .io/.co
-    // that have no public RDAP -- still fall back to a real extension rather
-    // than searching Dynadot for a bare name with no TLD at all.
+    // Prefer a confirmed-available TLD (com first). Reachable here only
+    // when isTaken is false (i.e. available.length >= 1), so this never
+    // falls back to a TLD we've confirmed is taken.
     const bestTld = available.includes('com') ? 'com' : (available[0] || state.selectedTlds[0] || 'com');
     const domain = `${c.name}.${bestTld}`;
     const dynadotUrl = DYNADOT.searchUrl(domain);
@@ -1197,7 +1218,18 @@ function renderChooseStep() {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'name-card' + (isTaken ? ' is-taken' : '');
-    card.disabled = isTaken;
+    // Not the native `disabled` attribute: real browsers refuse to dispatch
+    // click events to ANY descendant of a disabled button (confirmed via a
+    // real Chromium test), which would silently break the score-ring popover
+    // and any unknown-TLD "check" pills nested inside a taken card. aria-disabled
+    // + tabIndex=-1 keeps the card itself out of tab order and announced as
+    // disabled to assistive tech, without killing its interactive children --
+    // the card has no click listener attached below when taken anyway, so
+    // nothing is lost by leaving it technically "enabled".
+    if (isTaken) {
+      card.setAttribute('aria-disabled', 'true');
+      card.tabIndex = -1;
+    }
 
     const tldPills = state.selectedTlds.map((tld) => {
       const status = tldMap[tld];
@@ -1291,18 +1323,22 @@ function renderChooseStep() {
       // The direct name is gone, but it may still be sitting in Dynadot's
       // aftermarket (expired/backorder/listed-for-sale) -- a second
       // monetizable path instead of a plain dead end. This is a sibling of
-      // the (disabled) card button, not a descendant -- an <a> nested
-      // inside a disabled button would be invalid HTML and unreliably
-      // clickable across browsers, same reasoning as the save/risk buttons
+      // the card button, not a descendant -- an <a> nested inside a button
+      // is invalid HTML regardless, same reasoning as the save/risk buttons
       // above. Styled to read as one seamless card with the button anyway.
       const marketDomain = `${c.name}.${bestTld}`;
       const footer = document.createElement('div');
       footer.className = 'card-taken-footer';
       footer.innerHTML = `
-        <span class="card-taken-label">All checked extensions taken</span>
+        <span class="card-taken-label">Nothing came back available</span>
         <a class="card-taken-footer-link" href="${DYNADOT.marketSearchUrl(marketDomain)}" target="_blank" rel="noopener noreferrer">Check aftermarket ${ICONS.externalLink}</a>
       `;
       footer.querySelector('.card-taken-footer-link').addEventListener('click', () => {
+        // Same "leaving to Dynadot" milestone as the register click and the
+        // unknown-TLD check CTA below -- all three exits deserve the same
+        // progress/upsell treatment, not just the primary register path.
+        markAllDoneProgress();
+        showUpsellBanner();
         logEvent('aftermarket_checked', { name: c.name, tld: bestTld });
       });
       wrap.appendChild(footer);
@@ -1469,7 +1505,10 @@ function resetWizardToStart() {
   document.querySelectorAll('input[name="tld"]').forEach((cb) => {
     if (cb.value !== 'com') cb.checked = ['io', 'co', 'ai'].includes(cb.value);
   });
-  document.querySelectorAll('.sort-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.sort === 'availability'));
+  document.querySelectorAll('.sort-btn').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.sort === 'availability');
+    b.setAttribute('aria-pressed', String(b.dataset.sort === 'availability'));
+  });
 
   setStepState(1, 'active');
   setSummary(1, '');
@@ -1510,7 +1549,10 @@ function restoreWizardState() {
   document.querySelectorAll('input[name="tld"]').forEach((cb) => {
     if (cb.value !== 'com') cb.checked = state.selectedTlds.includes(cb.value);
   });
-  document.querySelectorAll('.sort-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.sort === state.sortMode));
+  document.querySelectorAll('.sort-btn').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.sort === state.sortMode);
+    b.setAttribute('aria-pressed', String(b.dataset.sort === state.sortMode));
+  });
 
   if (state.step >= 3 && state.candidates.length > 0) {
     setStepState(2, 'done');

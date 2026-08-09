@@ -1536,7 +1536,7 @@ textarea.is-invalid, input.is-invalid {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
-.name-card:hover:not(:disabled) {
+.name-card:hover:not(.is-taken) {
   border-color: var(--accent);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
@@ -1799,7 +1799,7 @@ textarea.is-invalid, input.is-invalid {
   flex-shrink: 0;
 }
 
-.name-card:hover:not(:disabled) .card-footer-cta {
+.name-card:hover:not(.is-taken) .card-footer-cta {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -2096,9 +2096,9 @@ textarea.is-invalid, input.is-invalid {
   min-height: 20px;
 }
 
-/* A taken card's footer lives outside the (disabled) button as a real
-   sibling -- see the JS comment where it's built -- but reads as one
-   seamless card by removing the shared edge and matching the corners. */
+/* A taken card's footer lives outside the button as a real sibling -- see
+   the JS comment where it's built -- but reads as one seamless card by
+   removing the shared edge and matching the corners. */
 .name-card.is-taken {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
@@ -2623,9 +2623,19 @@ textarea.is-invalid, input.is-invalid {
 .saved-item-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
 }
+
+/* The score ring is sized for a 2-3 column results grid; in this much
+   narrower (340px) panel, full size crowds the register link and remove
+   button, and reads oddly next to the smaller circular remove button. */
+.saved-item-actions .brand-score-badge {
+  width: 30px;
+  height: 30px;
+}
+.saved-item-actions .brand-score-num { font-size: 10px; }
+.saved-item-actions .brand-score-label { font-size: 6px; }
 
 .saved-item-register {
   display: inline-flex;
