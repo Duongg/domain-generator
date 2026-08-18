@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — typingname</title>
+  <meta name="description"
+    content="What typingname collects, what it doesn't, and how your business idea, saved domains, and usage data are handled.">
+  <link rel="canonical" href="https://typingname.com/privacy.html">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="robots" content="index, follow">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="typingname">
+  <meta property="og:url" content="https://typingname.com/privacy.html">
+  <meta property="og:title" content="Privacy Policy — typingname">
+  <meta property="og:description"
+    content="What typingname collects, what it doesn't, and how your business idea, saved domains, and usage data are handled.">
+  <meta property="og:image" content="https://typingname.com/og-image.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header class="legal-topbar">
+    <a href="/" class="hero-logo" aria-label="typingname — back to home">
+      <span class="hero-logo-dot" aria-hidden="true"></span>
+      typingname
+    </a>
+    <a href="/" class="legal-topbar-back">&larr; Back to typingname</a>
+  </header>
+
+  <main class="legal-page">
+    <h1>Privacy Policy</h1>
+    <p class="legal-updated">Last updated: August 18, 2026</p>
+
+    <p class="legal-intro">
+      typingname is built to need as little of your data as possible. There's no account, no email signup,
+      and no payment info collected on this site. This page explains exactly what does pass through the app,
+      why, and where it goes.
+    </p>
+
+    <div class="legal-callout">
+      Short version: your typed idea goes to Anthropic (Claude) to generate names. Your saved domains and
+      in-progress wizard stay in your browser. Anonymous usage events help us see where people get stuck.
+      Nothing is sold, and there's no advertising or third-party tracking on this site.
+    </div>
+
+    <h2>What we don't collect</h2>
+    <ul>
+      <li>No user accounts, passwords, or sign-in of any kind.</li>
+      <li>No email address, name, or payment details — typingname never asks for them, and domain purchases
+        happen entirely on Dynadot's site, not here.</li>
+      <li>No advertising cookies, no third-party analytics or tracking pixels, no social-media trackers.</li>
+    </ul>
+
+    <h2>What passes through the app, and why</h2>
+
+    <p><strong>The idea you type in.</strong> When you describe your business and generate names, that text is
+      sent to Anthropic's Claude API to produce category suggestions, name candidates, and brand scores. It's
+      processed to generate your results and isn't used by us for anything else. Avoid typing anything
+      personally sensitive into the description field — treat it like any other text sent to a third-party AI
+      service. See <a href="https://www.anthropic.com/legal/privacy" target="_blank"
+        rel="noopener noreferrer">Anthropic's privacy policy</a> for how they handle API input.</p>
+
+    <p><strong>The names you check.</strong> Candidate names and the extensions you select (.com, .io, etc.)
+      are sent to our server so it can query public domain registries (RDAP) for live availability — the same
+      public data anyone can look up directly.</p>
+
+    <p><strong>Anonymous usage events.</strong> As you move through the wizard (finishing a step, generating
+      names, saving a domain, clicking through to Dynadot), the app logs that event type along with a random
+      session ID — a value generated in your browser and stored in <code>sessionStorage</code>, not tied to
+      your name, email, or any account. This is used in aggregate to see where people drop off in the flow, so
+      the product can be improved. It is not used to build a profile of you individually, and it clears the
+      moment your browser session ends.</p>
+
+    <p><strong>Saved domains and wizard progress.</strong> When you bookmark a name or refresh mid-search,
+      that data is stored only in your own browser (<code>localStorage</code> for saved domains,
+      <code>sessionStorage</code> for the in-progress wizard) — it is never uploaded to our servers. Clearing
+      your browser storage, or using the app's own "remove" / "start over" controls, deletes it. The one
+      exception is the "Share this list" feature: if you explicitly click it, your saved list is encoded
+      directly into a URL you choose to share — nothing is stored on a server for that either.</p>
+
+    <h2>Cookies</h2>
+    <p>
+      typingname does not set cookies for tracking or advertising. The only client-side storage in use is
+      <code>localStorage</code> and <code>sessionStorage</code>, both described above, both used purely for
+      the app to function (remembering your saved names, resuming a draft) rather than to track you across
+      sites.
+    </p>
+
+    <h2>Third parties involved</h2>
+    <ul>
+      <li><strong>Anthropic (Claude API)</strong> — processes the business description and category you
+        submit to generate names, categories, and brand scores.</li>
+      <li><strong>Dynadot</strong> — the domain registrar this app links to. Once you click through to
+        register a domain, you're on Dynadot's site under Dynadot's own privacy policy; typingname has no
+        visibility into what happens after that click beyond the fact that it occurred (for the affiliate
+        commission described in our <a href="/about.html">About page</a>).</li>
+      <li><strong>Netlify</strong> — our hosting provider. Like virtually all web hosts, Netlify's
+        infrastructure may log standard technical data (e.g. IP address, request timestamps) for security and
+        operational purposes; typingname doesn't separately access or repurpose that data.</li>
+    </ul>
+
+    <h2>Data retention</h2>
+    <p>
+      Anonymous usage events are retained only as long as needed to understand product usage and are not
+      linked back to an individual. Anything stored in your browser (saved domains, wizard drafts) stays there
+      until you clear it yourself — we have no way to delete it remotely, because we never had a copy of it.
+    </p>
+
+    <h2>Children's privacy</h2>
+    <p>
+      typingname is a business-naming tool intended for founders, marketers, and businesses. It is not directed
+      at children under 13, and we do not knowingly collect data from children.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If what typingname collects or how it's used changes materially, this page will be updated and the "last
+      updated" date above will reflect it.
+    </p>
+
+    <div class="legal-contact-box">
+      <h2>Questions about your data</h2>
+      <p style="margin-bottom:0;">
+        Email <a href="mailto:ducduong2201@gmail.com">ducduong2201@gmail.com</a> and we'll get back to you.
+      </p>
+    </div>
+  </main>
+
+  <!-- ─────────────────── FOOTER ─────────────────── -->
+  <footer class="site-footer">
+    <div class="footer-glow" aria-hidden="true"></div>
+    <div class="footer-inner">
+
+      <div class="footer-top">
+
+        <div class="footer-brand">
+          <div class="footer-logo" aria-label="typingname">
+            <span class="footer-logo-dot" aria-hidden="true"></span>
+            typingname
+          </div>
+          <p class="footer-tagline">
+            Describe your idea, get 50+ AI-generated domain names, and see live
+            availability across every major extension — all in one flow.
+          </p>
+          <div class="footer-badge">
+            <span class="footer-badge-dot" aria-hidden="true"></span>
+            Powered by Claude AI
+          </div>
+        </div>
+
+        <nav class="footer-col" aria-labelledby="footer-product-title">
+          <h3 class="footer-col-title" id="footer-product-title">Product</h3>
+          <ul class="footer-list">
+            <li><a href="/#how-it-works">How it works</a></li>
+            <li><a href="/#journey">Start naming</a></li>
+            <li><a href="/#journey">Check domain availability</a></li>
+          </ul>
+        </nav>
+
+        <nav class="footer-col" aria-labelledby="footer-resources-title">
+          <h3 class="footer-col-title" id="footer-resources-title">Resources</h3>
+          <ul class="footer-list">
+            <li>
+              <a href="https://www.dynadot.com" target="_blank" rel="noopener noreferrer">
+                Dynadot
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            </li>
+            <li>
+              <a href="https://www.anthropic.com" target="_blank" rel="noopener noreferrer">
+                Claude by Anthropic
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            </li>
+          </ul>
+        </nav>
+
+        <nav class="footer-col" aria-labelledby="footer-company-title">
+          <h3 class="footer-col-title" id="footer-company-title">Company</h3>
+          <ul class="footer-list">
+            <li><a href="/about.html">About</a></li>
+            <li><a href="mailto:ducduong2201@gmail.com">Contact</a></li>
+            <li><a href="/privacy.html">Privacy Policy</a></li>
+            <li><a href="/terms.html">Terms of Service</a></li>
+          </ul>
+        </nav>
+
+      </div>
+
+      <div class="footer-bottom">
+        <span class="footer-copyright">© 2026 typingname. All rights reserved.</span>
+        <span class="footer-disclosure">
+          Domain registration is handled by our partner Dynadot — typingname may earn a commission on completed
+          registrations.
+        </span>
+      </div>
+
+    </div>
+  </footer>
+
+</body>
+
+</html>

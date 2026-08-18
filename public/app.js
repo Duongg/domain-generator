@@ -62,6 +62,7 @@ const state = {
   selectedTld: 'com',
   savedDomains: [],
   sortMode: 'availability', // 'availability' | 'score'
+  hideTaken: false,
   step: 1, // furthest step reached: 1 (describing) .. 4 (choosing)
 };
 
@@ -83,6 +84,7 @@ function persistWizardState() {
       candidates: state.candidates,
       availability: state.availability,
       sortMode: state.sortMode,
+      hideTaken: state.hideTaken,
       step: state.step,
     }));
   } catch {}
@@ -560,6 +562,34 @@ const describeError = document.getElementById('description-error');
 const btnFindCategory = document.getElementById('btn-find-category');
 const descriptionCounter = document.getElementById('description-counter');
 const DESCRIPTION_MAX_LEN = 500;
+// Below this, the AI pipeline runs on too little signal to produce good
+// names -- "app" or "my business" used to sail through at the old 3-char
+// floor, burning a real API call on output that undersold the whole tool.
+const DESCRIPTION_MIN_LEN = 10;
+const DESCRIPTION_MIN_WORDS = 2;
+
+// Rotated once per fresh visit (and again on "start over") so the blank
+// textarea shows a concrete example instead of generic placeholder copy --
+// a blank page with no example is a classic first-input drop-off point.
+const DESCRIPTION_EXAMPLES = [
+  'A subscription box that ships curated coffee beans from small roasters',
+  'A mobile app that matches freelance designers with startups needing quick logo work',
+  'An online marketplace for handmade furniture from independent woodworkers',
+  'A SaaS tool that automates expense reports for small agencies',
+  'A community platform for new parents to swap childcare tips and gear',
+];
+
+function setRandomDescriptionPlaceholder() {
+  const example = DESCRIPTION_EXAMPLES[Math.floor(Math.random() * DESCRIPTION_EXAMPLES.length)];
+  descriptionInput.placeholder = `e.g. ${example}`;
+}
+
+setRandomDescriptionPlaceholder();
+
+function isDescriptionSubstantial(value) {
+  const words = value.split(/\s+/).filter(Boolean);
+  return value.length >= DESCRIPTION_MIN_LEN && words.length >= DESCRIPTION_MIN_WORDS;
+}
 
 function getSelectedTone() {
   const checked = document.querySelector('input[name="tone"]:checked');
@@ -574,12 +604,12 @@ function getSelectedTlds() {
 
 function validateDescription() {
   const value = descriptionInput.value.trim();
-  const valid = value.length >= 3;
+  const valid = isDescriptionSubstantial(value);
   btnFindCategory.disabled = !valid;
 
   // Only surface the error once the user has started typing but hasn't
   // reached the minimum yet -- a blank field on first load needs no nagging.
-  const showError = value.length > 0 && !valid;
+  const showError = value.length >= 3 && !valid;
   descriptionInput.classList.toggle('is-invalid', showError);
   describeError.hidden = !showError;
 
@@ -596,10 +626,57 @@ function updateDescribeSubmit() {
 
 descriptionInput.addEventListener('input', validateDescription);
 
+// ---------- Resuming a saved draft ----------
+// Deliberately NOT auto-applied on page load: silently jumping straight to
+// step 3/4 and re-firing API calls the instant the page opens is jarring,
+// and re-spends real cost before the user has asked for anything. Instead
+// the page always lands on Step 1 as normal (pre-filled with the saved
+// description so it's not lost), and the offer to pick back up only
+// surfaces once the user actually engages with that field -- see the
+// 'input' listener below.
+let pendingResumeDraft = null;
+let resumeBannerOffered = false;
+
+function truncateForBanner(text, max) {
+  return text.length > max ? `${text.slice(0, max).trim()}…` : text;
+}
+
+function loadPendingResumeDraft() {
+  const saved = loadWizardState();
+  if (!saved || !saved.description || !saved.category || saved.step < 2) return;
+  pendingResumeDraft = saved;
+  descriptionInput.value = saved.description;
+  validateDescription();
+}
+
+function offerResumeIfPending() {
+  if (!pendingResumeDraft || resumeBannerOffered) return;
+  resumeBannerOffered = true;
+  document.getElementById('resume-banner-desc').textContent = truncateForBanner(pendingResumeDraft.description, 60);
+  document.getElementById('resume-banner-offer-step').textContent = String(Math.min(pendingResumeDraft.step, 4));
+  document.getElementById('resume-banner').hidden = false;
+}
+
+descriptionInput.addEventListener('input', offerResumeIfPending);
+
+document.getElementById('resume-banner-continue').addEventListener('click', async () => {
+  if (!pendingResumeDraft) return;
+  const draft = pendingResumeDraft;
+  pendingResumeDraft = null;
+  document.getElementById('resume-banner-offer').hidden = true;
+  document.getElementById('resume-banner-status').hidden = false;
+  await applyResumeDraft(draft);
+});
+
+document.getElementById('resume-banner-dismiss').addEventListener('click', () => {
+  pendingResumeDraft = null;
+  document.getElementById('resume-banner').hidden = true;
+});
+
 // Phase A → Phase B: fetch categories
 btnFindCategory.addEventListener('click', () => {
   const desc = descriptionInput.value.trim();
-  if (desc.length < 3) return;
+  if (!isDescriptionSubstantial(desc)) return;
   state.description = desc;
   enterPhaseB(desc, false);
 });
@@ -610,6 +687,7 @@ document.getElementById('btn-edit-description').addEventListener('click', () => 
 });
 
 function enterPhaseA() {
+  clearNamesPrefetch();
   document.getElementById('step1-phase-a').style.display = 'block';
   document.getElementById('step1-phase-b').style.display = 'none';
   document.getElementById('step1-help').textContent = 'One or two sentences works best — specific beats long.';
@@ -680,6 +758,12 @@ async function fetchCategories(description) {
 
     loadingEl.style.display = 'none';
     optionsEl.style.display = 'block';
+
+    // Speculative prefetch (see definition below): most people keep the
+    // AI's top-suggested category and the default tone, so start generating
+    // for that combination now, while they're still reading the cards and
+    // picking a tone -- that think time is where this wait gets absorbed.
+    startNamesPrefetch(description, state._cachedCategories[0]);
   } catch (err) {
     loadingEl.classList.add('is-error');
     loadingEl.innerHTML = `
@@ -862,6 +946,51 @@ function attachEditHandler() { /* replaced by stepper delegate above */ }
 
 // ---------- Step 2: generate names ----------
 
+// Speculative prefetch: the wizard's biggest dead-air stretch is the ~10-20s
+// name-generation wait, which today only starts *after* the user has read
+// the category cards, picked a tone, and clicked "Generate Names". Most
+// people keep the AI's #1 suggested category and the default "professional"
+// tone with no excludes, so as soon as categories come back, fire that exact
+// request in the background. If the user submits with those same settings
+// (the common case), generateNames() below just awaits the already-running
+// request instead of starting a fresh one -- the wait overlaps with think
+// time instead of stacking after it. Any other combination (different
+// category, tone, or exclude words) simply falls through to a fresh call,
+// so nothing here can ever serve the wrong result.
+let namesPrefetch = { key: null, promise: null };
+const PREFETCH_DEFAULT_TONE = 'professional';
+const PREFETCH_DEFAULT_EXCLUDE = '';
+
+function generateNamesKey({ description, category, tone, exclude }) {
+  return JSON.stringify({ description, category, tone, exclude });
+}
+
+async function fetchGenerateNames({ description, category, tone, exclude }) {
+  const res = await fetch('/api/generate-names', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ description, category, tone, exclude, count: 50 }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Name generation failed.');
+  if (!data.candidates || data.candidates.length === 0) {
+    throw new Error('No names came back. Try editing your description.');
+  }
+  return data;
+}
+
+function startNamesPrefetch(description, topCategory) {
+  if (!topCategory || !topCategory.name) return;
+  const params = { description, category: topCategory.name, tone: PREFETCH_DEFAULT_TONE, exclude: PREFETCH_DEFAULT_EXCLUDE };
+  const key = generateNamesKey(params);
+  if (namesPrefetch.key === key) return; // already in flight for this exact combination
+  namesPrefetch = { key, promise: fetchGenerateNames(params).catch(() => null) };
+}
+
+function clearNamesPrefetch() {
+  namesPrefetch = { key: null, promise: null };
+}
+
 async function generateNames() {
   // A real (non-demo) call for 50 names can run past the "usually 10-20s"
   // estimate shown up front -- if it does, swap in a message that confirms
@@ -873,22 +1002,14 @@ async function generateNames() {
   }, 15000);
 
   try {
-    const res = await fetch('/api/generate-names', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        description: state.description,
-        category: state.category,
-        tone: state.tone,
-        exclude: state.exclude,
-        count: 50,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Name generation failed.');
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No names came back. Try editing your description.');
-    }
+    const params = { description: state.description, category: state.category, tone: state.tone, exclude: state.exclude };
+    const key = generateNamesKey(params);
+    // Reuse the in-flight/completed prefetch only on an exact settings match
+    // -- a null result (prefetch failed or never ran) falls straight through
+    // to a normal fresh request below.
+    let data = namesPrefetch.key === key ? await namesPrefetch.promise : null;
+    clearNamesPrefetch();
+    if (!data) data = await fetchGenerateNames(params);
 
     state.candidates = data.candidates;
     if (data.demoMode) document.getElementById('demo-banner').hidden = false;
@@ -909,7 +1030,13 @@ async function generateNames() {
     document.querySelector('.step[data-step="3"] .step-help').textContent =
       `Checking ${extLine} — live registry data, no guessing.`;
     document.getElementById('availability-progress').hidden = false;
-    checkAvailability();
+    // Awaited (not fire-and-forget) so callers that DO await generateNames()
+    // -- restoreWizardState(), below -- see state.step reflect wherever the
+    // full generate+check pipeline actually lands, not just the moment
+    // generation finished. Callers that don't await (the normal describe-form
+    // submit flow) are unaffected either way, since they never looked at the
+    // returned promise to begin with.
+    await checkAvailability();
   } catch (err) {
     showBlockError('generate-progress', err.message, generateNames);
   } finally {
@@ -1167,6 +1294,17 @@ document.getElementById('sort-toggle').addEventListener('click', (e) => {
   if (state.candidates.length) renderChooseStep();
 });
 
+document.getElementById('hide-taken-toggle').addEventListener('change', (e) => {
+  state.hideTaken = e.target.checked;
+  persistWizardState();
+  if (state.candidates.length) renderChooseStep();
+});
+
+function isCandidateTaken(c) {
+  const tldMap = state.availability[c.name] || {};
+  return !state.selectedTlds.some((t) => tldMap[t] === true);
+}
+
 function renderChooseStep() {
   const grid = document.getElementById('results');
   grid.innerHTML = '';
@@ -1180,6 +1318,18 @@ function renderChooseStep() {
     return bAvail - aAvail;
   });
 
+  const visible = state.hideTaken ? sorted.filter((c) => !isCandidateTaken(c)) : sorted;
+
+  if (state.hideTaken && visible.length === 0 && sorted.length > 0) {
+    grid.innerHTML = `
+      <p class="results-empty-state">
+        Every name in this batch is taken across the extensions you checked.
+        Uncheck <strong>Hide taken</strong> above to see them anyway, or edit Step 1 to try a different angle.
+      </p>
+    `;
+    return;
+  }
+
   // The single highest-scoring name that's actually available -- not
   // everything in a 50-card grid should compete equally for attention, and
   // a real "best of this batch" beats decorating an arbitrary card.
@@ -1190,7 +1340,7 @@ function renderChooseStep() {
       return !best || score > best.score ? { name: c.name, score } : best;
     }, null)?.name;
 
-  sorted.forEach((c) => {
+  visible.forEach((c) => {
     const tldMap = state.availability[c.name] || {};
     const anyAvailable = state.selectedTlds.some((t) => tldMap[t] === true);
     // "Taken" just means nothing came back available -- it used to also
@@ -1477,6 +1627,12 @@ document.addEventListener('click', (e) => {
 });
 
 function resetWizardToStart() {
+  clearNamesPrefetch();
+  setRandomDescriptionPlaceholder();
+  pendingResumeDraft = null;
+  resumeBannerOffered = false;
+  document.getElementById('resume-banner-offer').hidden = false;
+  document.getElementById('resume-banner-status').hidden = true;
   state.description = '';
   state.tone = 'professional';
   state.exclude = '';
@@ -1509,6 +1665,8 @@ function resetWizardToStart() {
     b.classList.toggle('is-active', b.dataset.sort === 'availability');
     b.setAttribute('aria-pressed', String(b.dataset.sort === 'availability'));
   });
+  state.hideTaken = false;
+  document.getElementById('hide-taken-toggle').checked = false;
 
   setStepState(1, 'active');
   setSummary(1, '');
@@ -1523,13 +1681,12 @@ function resetWizardToStart() {
   setTimeout(() => descriptionInput.focus(), 100);
 }
 
-// Restore an in-progress draft after a page refresh, replaying the same
-// step-completion UI the normal flow produces rather than re-fetching from
-// the API (the whole point is to avoid losing/re-paying for a generation).
-function restoreWizardState() {
-  const saved = loadWizardState();
-  if (!saved || !saved.description || !saved.category || saved.step < 2) return;
-
+// Applies a previously-saved draft (see loadPendingResumeDraft() below for
+// when this actually gets called) -- replays the same step-completion UI the
+// normal flow produces rather than re-fetching from the API (the whole point
+// is to avoid losing/re-paying for a generation), then falls through to
+// whichever step was still in flight when the draft was saved.
+async function applyResumeDraft(saved) {
   state.description = saved.description;
   state.tone = saved.tone || 'professional';
   state.exclude = saved.exclude || '';
@@ -1538,6 +1695,7 @@ function restoreWizardState() {
   state.candidates = Array.isArray(saved.candidates) ? saved.candidates : [];
   state.availability = saved.availability || {};
   state.sortMode = saved.sortMode === 'score' ? 'score' : 'availability';
+  state.hideTaken = !!saved.hideTaken;
   state.step = saved.step;
 
   setStepState(1, 'done');
@@ -1553,6 +1711,13 @@ function restoreWizardState() {
     b.classList.toggle('is-active', b.dataset.sort === state.sortMode);
     b.setAttribute('aria-pressed', String(b.dataset.sort === state.sortMode));
   });
+  document.getElementById('hide-taken-toggle').checked = state.hideTaken;
+
+  // Shown immediately, before the awaits below -- someone resuming mid-generation
+  // or mid-availability-check should be able to bail out during that wait, same
+  // as the normal (non-restore) flow already lets them.
+  showStartOverButton();
+  updateResumeBanner();
 
   if (state.step >= 3 && state.candidates.length > 0) {
     setStepState(2, 'done');
@@ -1580,18 +1745,29 @@ function restoreWizardState() {
     setSummary(2, `<span>${state.candidates.length} names generated</span>`);
     setStepState(3, 'active');
     document.getElementById('availability-progress').hidden = false;
-    checkAvailability();
+    // Awaited so the resume-banner text below reflects wherever this
+    // actually lands (step 4 on success, still step 3 if it fails) instead
+    // of freezing on the step number captured before it resolved.
+    await checkAvailability();
   } else {
     // Refresh landed mid-generation — nothing cached yet, just re-run it.
     setStepState(2, 'active');
-    generateNames();
+    // Also awaited, for the same reason -- generateNames() itself now awaits
+    // its own trailing checkAvailability() call (see there), so this carries
+    // state.step all the way to its real resting point before we read it.
+    await generateNames();
   }
 
-  showStartOverButton();
+  // state.step may have moved on past what updateResumeBanner() showed
+  // above (2→3→4 as generation/availability-checking finished in the
+  // background) -- correct it to wherever things actually landed, success
+  // or failure, instead of leaving the number shown pre-resume frozen.
+  updateResumeBanner();
+}
 
-  const resumeBanner = document.getElementById('resume-banner');
+function updateResumeBanner() {
   document.getElementById('resume-banner-step').textContent = String(Math.min(state.step, 4));
-  resumeBanner.hidden = false;
+  document.getElementById('resume-banner').hidden = false;
 }
 
 // Fire once per browser session (not on every refresh) -- getSessionId()
@@ -1603,4 +1779,4 @@ try {
 } catch {}
 if (isNewSession) logEvent('session_start', { path: location.pathname });
 
-restoreWizardState();
+loadPendingResumeDraft();

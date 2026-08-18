@@ -272,9 +272,26 @@
         Demo mode — showing sample names. Add an Anthropic API key to generate real ones.
       </div>
     </div>
-    <p class="resume-banner" id="resume-banner" hidden>
-      Picking up where you left off — step <span id="resume-banner-step"></span> of 4.
-    </p>
+    <div class="resume-banner" id="resume-banner" hidden>
+      <div class="resume-banner-offer" id="resume-banner-offer">
+        <p class="resume-banner-text">
+          You have a search in progress for "<span id="resume-banner-desc"></span>" — step
+          <span id="resume-banner-offer-step"></span> of 4.
+        </p>
+        <div class="resume-banner-actions">
+          <button type="button" class="resume-banner-continue" id="resume-banner-continue">Resume it &rarr;</button>
+          <button type="button" class="resume-banner-dismiss" id="resume-banner-dismiss" aria-label="Dismiss">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <p class="resume-banner-status" id="resume-banner-status" hidden>
+        Picking up where you left off — step <span id="resume-banner-step"></span> of 4.
+      </p>
+    </div>
 
     <div class="shared-list-panel" id="shared-list-panel" hidden>
       <div class="shared-list-head">
@@ -313,9 +330,9 @@
 
             <!-- Phase A: describe your idea -->
             <div id="step1-phase-a">
-              <textarea id="description" rows="3" placeholder="Type your idea, your business" maxlength="500" required></textarea>
+              <textarea id="description" rows="3" placeholder="e.g. A subscription box that ships curated coffee beans from small roasters" maxlength="500" required></textarea>
               <div class="description-meta">
-                <p class="field-error" id="description-error" hidden>Tell us a bit about what you're building.</p>
+                <p class="field-error" id="description-error" hidden>Add a bit more detail — a full sentence about what you're building works best.</p>
                 <span class="char-counter" id="description-counter">0 / 500</span>
               </div>
               <button type="button" class="btn-primary" id="btn-find-category" disabled>Analyze My Idea &rarr;</button>
@@ -485,7 +502,7 @@
                 <span class="tld-ctx">Community</span>
               </label>
             </div>
-            <p class="tld-chips-hint" id="tld-chips-hint">These extensions run automatically on the defaults above. Use <strong>Change</strong> below (once this step is done) to pick different ones.</p>
+            <p class="tld-chips-hint" id="tld-chips-hint">These extensions run automatically on the defaults above. Use <strong>Change</strong> below (once this step is done) to pick different ones. <strong>.io</strong> and <strong>.co</strong> have no public live-availability registry — instead of guessing, we'll flag them for a one-click check on Dynadot.</p>
             <div class="edit-form-actions" id="step3-edit-actions">
               <button type="button" class="btn-secondary" id="step3-cancel-btn">Cancel</button>
               <button type="button" class="btn-primary" id="step3-recheck-btn">Recheck availability &rarr;</button>
@@ -525,10 +542,16 @@
               </button>
             </div>
             <div class="results-toolbar">
-              <span class="results-toolbar-label">Sort by</span>
-              <div class="sort-toggle" id="sort-toggle" role="group" aria-label="Sort names by">
-                <button type="button" class="sort-btn is-active" data-sort="availability" aria-pressed="true">Best domain match</button>
-                <button type="button" class="sort-btn" data-sort="score" aria-pressed="false">Best brand score</button>
+              <label class="hide-taken-toggle">
+                <input type="checkbox" id="hide-taken-toggle">
+                <span>Hide taken</span>
+              </label>
+              <div class="results-toolbar-sort">
+                <span class="results-toolbar-label">Sort by</span>
+                <div class="sort-toggle" id="sort-toggle" role="group" aria-label="Sort names by">
+                  <button type="button" class="sort-btn is-active" data-sort="availability" aria-pressed="true">Best domain match</button>
+                  <button type="button" class="sort-btn" data-sort="score" aria-pressed="false">Best brand score</button>
+                </div>
               </div>
             </div>
             <div id="results" class="results-grid"></div>
@@ -595,6 +618,16 @@
                 </svg>
               </a>
             </li>
+          </ul>
+        </nav>
+
+        <nav class="footer-col" aria-labelledby="footer-company-title">
+          <h3 class="footer-col-title" id="footer-company-title">Company</h3>
+          <ul class="footer-list">
+            <li><a href="/about.html">About</a></li>
+            <li><a href="mailto:ducduong2201@gmail.com">Contact</a></li>
+            <li><a href="/privacy.html">Privacy Policy</a></li>
+            <li><a href="/terms.html">Terms of Service</a></li>
           </ul>
         </nav>
 
