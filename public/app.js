@@ -965,18 +965,59 @@ function generateNamesKey({ description, category, tone, exclude }) {
   return JSON.stringify({ description, category, tone, exclude });
 }
 
-async function fetchGenerateNames({ description, category, tone, exclude }) {
+// Netlify's function gateway kills a request after ~30s of inactivity, and
+// asking Claude for 50 names (with rationale/insight/tags per name) in one
+// call routinely takes longer than that -- confirmed against prod, where a
+// single count:50 request failed with 502/504 essentially every time (even
+// count:15 was already flirting with the limit). Splitting into several
+// smaller requests fired in parallel keeps each individual call well under
+// the timeout while still returning ~50 names overall.
+const NAMES_PER_BATCH = 8;
+const NAME_BATCHES = 6;
+
+async function fetchGenerateNamesBatch({ description, category, tone, exclude }, batchIndex) {
   const res = await fetch('/api/generate-names', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ description, category, tone, exclude, count: 50 }),
+    body: JSON.stringify({
+      description, category, tone, exclude,
+      count: NAMES_PER_BATCH,
+      offset: batchIndex * NAMES_PER_BATCH, // keeps demo-mode batches from all returning the same names
+    }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Name generation failed.');
-  if (!data.candidates || data.candidates.length === 0) {
-    throw new Error('No names came back. Try editing your description.');
-  }
   return data;
+}
+
+async function fetchGenerateNames(params) {
+  const batches = await Promise.allSettled(
+    Array.from({ length: NAME_BATCHES }, (_, i) => fetchGenerateNamesBatch(params, i))
+  );
+
+  const seenNames = new Set();
+  const candidates = [];
+  let demoMode = false;
+  let firstError = null;
+
+  for (const batch of batches) {
+    if (batch.status !== 'fulfilled') {
+      if (!firstError) firstError = batch.reason;
+      continue;
+    }
+    demoMode = demoMode || !!batch.value.demoMode;
+    for (const c of batch.value.candidates || []) {
+      if (!seenNames.has(c.name)) {
+        seenNames.add(c.name);
+        candidates.push(c);
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    throw firstError || new Error('No names came back. Try editing your description.');
+  }
+  return { candidates, demoMode };
 }
 
 function startNamesPrefetch(description, topCategory) {

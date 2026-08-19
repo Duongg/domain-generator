@@ -107,21 +107,27 @@ function pronounceabilityScore(name) {
 // mid-object when the model's response hit max_tokens, instead of failing
 // the whole request over a truncated tail.
 function salvageJsonArray(text) {
+  // The model is asked for pure JSON but occasionally prefaces the array
+  // with a stray sentence despite instructions -- trim to the array itself
+  // before attempting to parse (a no-op when the text already starts at '[').
+  const firstBracket = text.indexOf('[');
+  const trimmed = firstBracket !== -1 ? text.slice(firstBracket) : text;
+
   try {
-    return JSON.parse(text);
+    return JSON.parse(trimmed);
   } catch {}
 
-  const lastCompleteEntry = text.lastIndexOf('},');
+  const lastCompleteEntry = trimmed.lastIndexOf('},');
   if (lastCompleteEntry !== -1) {
     try {
-      return JSON.parse(`${text.slice(0, lastCompleteEntry + 1)}]`);
+      return JSON.parse(`${trimmed.slice(0, lastCompleteEntry + 1)}]`);
     } catch {}
   }
 
-  const lastObjectEnd = text.lastIndexOf('}');
+  const lastObjectEnd = trimmed.lastIndexOf('}');
   if (lastObjectEnd !== -1) {
     try {
-      return JSON.parse(`${text.slice(0, lastObjectEnd + 1)}]`);
+      return JSON.parse(`${trimmed.slice(0, lastObjectEnd + 1)}]`);
     } catch {}
   }
 
@@ -139,14 +145,16 @@ function computeBrandScore(name, memorability, distinctiveness) {
   return { total, length, pronounceability, memorability: memorabilityScore, distinctiveness: distinctivenessScore };
 }
 
-function getMockCandidates(count) {
+function getMockCandidates(count, offset = 0) {
   const result = [];
   for (let i = 0; i < count; i += 1) {
-    const base = MOCK_POOL[i % MOCK_POOL.length];
+    const idx = i + offset;
+    const base = MOCK_POOL[idx % MOCK_POOL.length];
     // MOCK_POOL covers the UI's default request (50) with zero repeats;
-    // this suffix only kicks in for direct API calls asking for more than
-    // MOCK_POOL.length, which the wizard itself never does.
-    const cycle = Math.floor(i / MOCK_POOL.length);
+    // this suffix only kicks in once idx runs past MOCK_POOL.length -- e.g.
+    // when the wizard's parallel batches (each with a different offset) add
+    // up to more than MOCK_POOL.length combined.
+    const cycle = Math.floor(idx / MOCK_POOL.length);
     const name = cycle === 0 ? base.name : `${base.name}${cycle + 1}`;
     // Demo mode has no LLM call to source memorability/distinctiveness from,
     // so derive a stand-in from the existing hand-picked tags.
@@ -419,18 +427,19 @@ router.post('/suggest-categories', async (req, res) => {
 });
 
 router.post('/generate-names', async (req, res) => {
-  const { description, tone, exclude, count, category } = req.body || {};
+  const { description, tone, exclude, count, offset, category } = req.body || {};
 
   if (!description || typeof description !== 'string' || description.trim().length < 3) {
     return res.status(400).json({ error: 'Please provide a business description (at least a few words).' });
   }
 
   const safeCount = Math.min(Math.max(parseInt(count, 10) || 50, 5), 60);
+  const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
 
   if (DEMO_MODE) {
     // Simulate a little latency so the loading state in the UI still makes sense.
     await new Promise((resolve) => setTimeout(resolve, 900));
-    return res.json({ candidates: getMockCandidates(safeCount), demoMode: true });
+    return res.json({ candidates: getMockCandidates(safeCount, safeOffset), demoMode: true });
   }
 
   const safeDescription = description.trim().slice(0, MAX_DESCRIPTION_LEN);
