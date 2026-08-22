@@ -672,13 +672,21 @@ function updateDescribeSubmit() {
 descriptionInput.addEventListener('input', validateDescription);
 
 // ---------- Resuming a saved draft ----------
-// Deliberately NOT auto-applied on page load: silently jumping straight to
-// step 3/4 and re-firing API calls the instant the page opens is jarring,
-// and re-spends real cost before the user has asked for anything. Instead
-// the page always lands on Step 1 as normal (pre-filled with the saved
-// description so it's not lost), and the offer to pick back up only
-// surfaces once the user actually engages with that field -- see the
-// 'input' listener below.
+// The draft itself is never auto-applied on page load: silently jumping
+// straight to step 3/4 and re-firing API calls the instant the page opens
+// is jarring, and re-spends real cost before the user has asked for
+// anything. applyResumeDraft() only ever runs from the explicit "Resume it"
+// click below.
+//
+// The OFFER to resume, though, has to surface immediately -- it used to
+// wait for an 'input' event on the description field (the idea being that
+// re-engaging with that field signals renewed intent), but in practice that
+// meant a plain refresh just looked like everything was gone: the stepper
+// resets to step 1 and nothing on screen hints that steps 2-4 are still
+// sitting in sessionStorage, since typing into an already-prefilled box
+// isn't something anyone naturally does. Calling offerResumeIfPending()
+// straight away fixes that without changing the "never auto-apply" rule
+// above -- it just shows the banner; the user still has to click through it.
 let pendingResumeDraft = null;
 let resumeBannerOffered = false;
 
@@ -692,6 +700,7 @@ function loadPendingResumeDraft() {
   pendingResumeDraft = saved;
   descriptionInput.value = saved.description;
   validateDescription();
+  offerResumeIfPending();
 }
 
 function offerResumeIfPending() {
