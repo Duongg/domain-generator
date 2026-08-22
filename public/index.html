@@ -86,47 +86,44 @@
         then generate 50+ domain-ready names — checked live across every major extension.
       </p>
 
-      <!-- Static preview of what the output looks like — swapped daily by category via app.js -->
+      <!-- Illustrative-only preview shown before /api/daily-preview's live,
+           RDAP-checked results load (see app.js) -- none of these cards
+           carry an availability claim or a registrar link, since none of
+           them have actually been checked. -->
       <div class="hero-preview-label" id="hero-preview-label">
         <span class="hero-preview-label-dot" aria-hidden="true"></span>
-        <span id="hero-preview-label-text">Trending in Tech today</span>
+        <span id="hero-preview-label-text">Example searches</span>
       </div>
       <div class="hero-preview" id="hero-preview" aria-label="Example domain suggestions">
-        <a class="hp-card hp-avail" href="https://www.dynadot.com/domain/search?domain=brightloop.io" target="_blank" rel="noopener noreferrer" aria-label="Register brightloop.io on Dynadot">
+        <div class="hp-card hp-example">
           <div class="hp-left">
             <span class="hp-name">brightloop</span><span class="hp-tld">.io</span>
           </div>
-          <span class="hp-badge avail">Available</span>
-        </a>
-        <a class="hp-card hp-avail" href="https://www.dynadot.com/domain/search?domain=vearo.com" target="_blank" rel="noopener noreferrer" aria-label="Register vearo.com on Dynadot">
+        </div>
+        <div class="hp-card hp-example">
           <div class="hp-left">
             <span class="hp-name">vearo</span><span class="hp-tld">.com</span>
           </div>
-          <span class="hp-badge avail">Available</span>
-        </a>
-        <div class="hp-card hp-taken">
+        </div>
+        <div class="hp-card hp-example">
           <div class="hp-left">
             <span class="hp-name">corestack</span><span class="hp-tld">.ai</span>
           </div>
-          <span class="hp-badge taken">Taken</span>
         </div>
-        <a class="hp-card hp-avail" href="https://www.dynadot.com/domain/search?domain=nimbly.co" target="_blank" rel="noopener noreferrer" aria-label="Register nimbly.co on Dynadot">
+        <div class="hp-card hp-example">
           <div class="hp-left">
             <span class="hp-name">nimbly</span><span class="hp-tld">.co</span>
           </div>
-          <span class="hp-badge avail">Available</span>
-        </a>
-        <a class="hp-card hp-avail" href="https://www.dynadot.com/domain/search?domain=ravelin.io" target="_blank" rel="noopener noreferrer" aria-label="Register ravelin.io on Dynadot">
+        </div>
+        <div class="hp-card hp-example">
           <div class="hp-left">
             <span class="hp-name">ravelin</span><span class="hp-tld">.io</span>
           </div>
-          <span class="hp-badge avail">Available</span>
-        </a>
-        <div class="hp-card hp-taken">
+        </div>
+        <div class="hp-card hp-example">
           <div class="hp-left">
             <span class="hp-name">oblio</span><span class="hp-tld">.com</span>
           </div>
-          <span class="hp-badge taken">Taken</span>
         </div>
       </div>
 
@@ -146,35 +143,12 @@
         <span>Powered by Claude AI</span>
       </div>
 
-      <div class="hero-partner" aria-label="Registrar partner">
-        <div class="hero-partner-left">
-          <svg class="hero-partner-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-          <div class="hero-partner-text">
-            <span class="hero-partner-title">Trusted Registrar Partner</span>
-            <span class="hero-partner-sub">Official domain registration</span>
-          </div>
-        </div>
-        <a class="hero-partner-brand" href="https://www.dynadot.com" target="_blank" rel="noopener noreferrer"
-          aria-label="Dynadot — domain registrar partner">
-          <svg class="hero-partner-brand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-          <span class="hero-partner-brand-name">Dynadot</span>
-          <svg class="hero-partner-brand-ext" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-        </a>
-      </div>
+      <p class="hero-partner-note">
+        Domain registration is handled directly by
+        <a class="js-dynadot-link" href="https://www.dynadot.com" target="_blank" rel="noopener noreferrer sponsored">Dynadot</a>
+        — typingname may earn a commission on completed registrations once its affiliate program
+        application is approved.
+      </p>
 
     </div>
   </section>
@@ -192,7 +166,13 @@
           <div class="how-step-circle">
             <span class="how-step-num">1</span>
           </div>
-          <div class="how-step-icon" aria-hidden="true">✏️</div>
+          <div class="how-step-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          </div>
           <h3 class="how-step-title">Describe your idea</h3>
           <p class="how-step-desc">One or two sentences about what you're building. Specific beats long.</p>
         </div>
@@ -208,7 +188,13 @@
           <div class="how-step-circle">
             <span class="how-step-num">2</span>
           </div>
-          <div class="how-step-icon" aria-hidden="true">🏷️</div>
+          <div class="how-step-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+          </div>
           <h3 class="how-step-title">Pick your industry</h3>
           <p class="how-step-desc">AI suggests 3 best-fit categories. Choose one or type your own.</p>
         </div>
@@ -224,7 +210,13 @@
           <div class="how-step-circle">
             <span class="how-step-num">3</span>
           </div>
-          <div class="how-step-icon" aria-hidden="true">✨</div>
+          <div class="how-step-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z" />
+            </svg>
+          </div>
           <h3 class="how-step-title">Get curated names</h3>
           <p class="how-step-desc">50+ unique names — literal, brandable, and invented — each with an AI-written
             insight.</p>
@@ -241,7 +233,14 @@
           <div class="how-step-circle">
             <span class="how-step-num">4</span>
           </div>
-          <div class="how-step-icon" aria-hidden="true">🌐</div>
+          <div class="how-step-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
+            </svg>
+          </div>
           <h3 class="how-step-title">Register your domain</h3>
           <p class="how-step-desc">Live registry checks for .com, .ai, .net, .org, .app, .dev. Click to claim yours on Dynadot.
           </p>
@@ -335,7 +334,14 @@
                 <p class="field-error" id="description-error" hidden>Add a bit more detail — a full sentence about what you're building works best.</p>
                 <span class="char-counter" id="description-counter">0 / 500</span>
               </div>
-              <button type="button" class="btn-primary" id="btn-find-category" disabled>Analyze My Idea &rarr;</button>
+              <button type="button" class="btn-primary" id="btn-find-category" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path
+                    d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z" />
+                </svg>
+                Analyze My Idea &rarr;
+              </button>
             </div>
 
             <!-- Phase B: pick category + generate -->
@@ -408,7 +414,14 @@
 
                 <div class="edit-form-actions">
                   <button type="button" class="btn-secondary" id="edit-cancel-btn">Cancel</button>
-                  <button type="submit" class="btn-primary" id="describe-submit" disabled>Generate Names &rarr;</button>
+                  <button type="submit" class="btn-primary" id="describe-submit" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path
+                        d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z" />
+                    </svg>
+                    Generate Names &rarr;
+                  </button>
                 </div>
               </form>
 
@@ -526,7 +539,9 @@
             <div class="step-summary"><span class="step-summary-text"></span></div>
           </div>
           <p class="step-help"><strong>Dimmed</strong> names are already taken &nbsp;·&nbsp; <strong>tap a
-              score</strong> to see its breakdown &nbsp;·&nbsp; <strong>click a name</strong> to register it on Dynadot
+              score</strong> to see its breakdown &nbsp;·&nbsp; <strong>click a name</strong> to register it on
+            Dynadot — typingname may earn a commission on completed registrations once its affiliate
+            program application is approved.
           </p>
           <div class="step-content">
             <div class="upsell-banner" id="upsell-banner" hidden>
@@ -534,8 +549,8 @@
               <p class="upsell-banner-text">Got a name — now build on it. Dynadot also offers a free website
                 builder and professional email for your new domain.</p>
               <div class="upsell-banner-actions">
-                <a href="https://www.dynadot.com/website-builder" target="_blank" rel="noopener noreferrer" data-upsell="website-builder">Website Builder</a>
-                <a href="https://www.dynadot.com/email" target="_blank" rel="noopener noreferrer" data-upsell="email">Email</a>
+                <a class="js-dynadot-link" href="https://www.dynadot.com/website-builder" target="_blank" rel="noopener noreferrer sponsored" data-upsell="website-builder">Website Builder</a>
+                <a class="js-dynadot-link" href="https://www.dynadot.com/email" target="_blank" rel="noopener noreferrer sponsored" data-upsell="email">Email</a>
               </div>
               <button type="button" class="upsell-banner-close" id="upsell-banner-close" aria-label="Dismiss">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -637,7 +652,7 @@
         <span class="footer-copyright">© 2026 typingname. All rights reserved.</span>
         <span class="footer-disclosure">
           Domain registration is handled by our partner Dynadot — typingname may earn a commission on completed
-          registrations.
+          registrations once its affiliate program application is approved.
         </span>
       </div>
 

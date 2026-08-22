@@ -364,90 +364,33 @@ a.hp-card.hp-avail:focus-visible {
   opacity: 0.4;
 }
 
-/* ── Partner logos strip ── */
+/* ── Partner / affiliate disclosure note ── */
+/* Plain text, not a branded "certified partner" badge -- the affiliate
+   application is still pending approval, so nothing here should read as an
+   endorsement from Dynadot. See terms.html's "Affiliate relationship"
+   section for the same wording. */
 
-.hero-partner {
+.hero-partner-note {
   width: 100%;
   max-width: 580px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   padding: 13px 20px;
   background: rgba(255, 255, 255, 0.04);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(226, 232, 240, 0.65);
+  text-align: center;
 }
 
-.hero-partner-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.hero-partner-check {
+.hero-partner-note a {
   color: var(--accent);
-  flex-shrink: 0;
-}
-
-.hero-partner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.hero-partner-title {
-  font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: 14px;
-  color: #e2e8f0;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-
-.hero-partner-sub {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: rgba(148, 163, 184, 0.5);
-}
-
-.hero-partner-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  background: rgba(0, 164, 166, 0.1);
-  border: 1px solid rgba(0, 164, 166, 0.22);
-  border-radius: 8px;
-  padding: 5px 11px 5px 7px;
   text-decoration: none;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
-  flex-shrink: 0;
 }
 
-.hero-partner-brand:hover {
-  background: rgba(0, 164, 166, 0.18);
-  border-color: rgba(0, 164, 166, 0.4);
-  transform: translateY(-1px);
-}
-
-.hero-partner-brand-icon {
-  flex-shrink: 0;
-  color: var(--accent);
-}
-
-.hero-partner-brand-name {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  font-size: 13px;
-  color: #e2e8f0;
-  letter-spacing: -0.01em;
-}
-
-.hero-partner-brand-ext {
-  color: rgba(148, 163, 184, 0.4);
-  margin-left: 1px;
+.hero-partner-note a:hover {
+  text-decoration: underline;
 }
 
 /* ═══════════════════════════════════════════════
@@ -525,8 +468,10 @@ a.hp-card.hp-avail:focus-visible {
 }
 
 .how-step-icon {
-  font-size: 26px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
 }
 
 .how-step-title {
@@ -1101,7 +1046,13 @@ textarea.is-invalid, input.is-invalid {
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(0, 164, 166, 0.35);
 }
-.btn-primary:disabled { opacity: 0.38; cursor: not-allowed; box-shadow: none; }
+.btn-primary:disabled {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  opacity: 1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 .btn-primary:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 3px; }
 
 .btn-secondary {
@@ -2932,11 +2883,22 @@ textarea.is-invalid, input.is-invalid {
 
 /* ─── Find category button in Phase A ────────────────────── */
 
+#btn-find-category,
+#describe-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 #btn-find-category {
   width: 100%;
-  text-align: center;
-  justify-content: center;
   margin-top: var(--sp-2);
+}
+
+#btn-find-category svg,
+#describe-submit svg {
+  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════════

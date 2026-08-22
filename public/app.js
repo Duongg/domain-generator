@@ -4,32 +4,66 @@
 // confirmed live against dynadot.com.
 
 const DYNADOT = {
-  searchUrl: (d) => `https://www.dynadot.com/domain/search?domain=${encodeURIComponent(d)}`,
+  // Single point where a real affiliate/tracking query param gets appended
+  // once one exists (see routes.js's affiliate-tracking note) -- every
+  // outbound Dynadot URL built here, plus the static ones marked
+  // js-dynadot-link in index.html (rewritten via applyDynadotTracking()
+  // below), routes through this so activating tracking later is a one-line
+  // change instead of a hunt through the codebase for hardcoded URLs.
+  withTracking(url) {
+    return url;
+  },
+  searchUrl(d) {
+    return this.withTracking(`https://www.dynadot.com/domain/search?domain=${encodeURIComponent(d)}`);
+  },
   // Separate from the registration search above -- this is Dynadot's
   // aftermarket/backorder tool (auctions, expired domains, listings),
   // confirmed live by querying it directly (not published via schema.org
   // like the registration search is, but verified to return real listing
   // results, not just a static page).
-  marketSearchUrl: (d) => `https://www.dynadot.com/market/search?domain=${encodeURIComponent(d)}`,
+  marketSearchUrl(d) {
+    return this.withTracking(`https://www.dynadot.com/market/search?domain=${encodeURIComponent(d)}`);
+  },
+  bulkSearchUrl() {
+    return this.withTracking('https://www.dynadot.com/domain/bulk-search');
+  },
 };
 
-// Manually-verified USD registration prices, checked directly against each
-// TLD's dynadot.com page (not an API -- there's no Dynadot API key wired up
-// yet). Showing a real number next to an available extension is meant to
-// cut bounce-before-click: uncertainty about price is a classic reason
-// people abandon an outbound click before landing on the registrar.
-// .ai/.net/.org are deliberately omitted: unauthenticated fetches of those
-// pages returned inconsistent currencies (EUR vs USD) across requests, so
-// rather than guess or silently convert, no price is shown for them until
-// there's a reliable USD source. Re-verify the rest periodically -- prices
-// change and sales expire.
+// Progressive enhancement for the handful of Dynadot links authored
+// directly in index.html (upsell banner) rather than built by this file --
+// keeps them flowing through DYNADOT.withTracking() too, so there's one
+// single place (above) to update once a real tracking id exists, not one
+// place for JS-built links and a separate hunt through the HTML for these.
+document.querySelectorAll('a.js-dynadot-link').forEach((a) => {
+  a.href = DYNADOT.withTracking(a.href);
+});
+
+// Shown next to each available extension so uncertainty about price isn't
+// a reason to bounce before clicking through to the registrar. Starts as a
+// manually-verified fallback and gets overwritten with live Dynadot pricing
+// by refreshTldPricing() below, once /api/domain-pricing resolves --
+// mutated in place (Object.assign), not reassigned, so every render that
+// reads TLD_PRICING[tld] picks up live numbers automatically without any
+// call site needing to know a refresh happened.
 const TLD_PRICING = {
-  com: { usd: 10.88, verified: '2026-08-09' },
-  io:  { usd: 28.89, verified: '2026-08-09' },
-  co:  { usd: 3.48,  verified: '2026-08-09' },
-  app: { usd: 9.99,  verified: '2026-08-09' },
-  dev: { usd: 8.00,  verified: '2026-08-09' },
+  com: { usd: 10.88 },
+  io:  { usd: 28.89 },
+  co:  { usd: 3.48 },
+  app: { usd: 9.99 },
+  dev: { usd: 8.00 },
 };
+
+(async function refreshTldPricing() {
+  try {
+    const res = await fetch('/api/domain-pricing');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.pricing) Object.assign(TLD_PRICING, data.pricing);
+  } catch {
+    // Offline / request failed -- keep showing the fallback table above.
+    // Pricing is a display nicety, not required for the wizard to function.
+  }
+})();
 
 // ---------- Icons ----------
 
@@ -44,6 +78,7 @@ const ICONS = {
   bookmarkOutline: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>',
   bookmarkFilled: '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>',
   shield: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>',
+  sparkle: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>',
 };
 
 // ---------- Wizard state ----------
@@ -239,7 +274,7 @@ function renderSavedPanel() {
         </div>
         <div class="saved-item-actions">
           ${renderScoreBadge(d.brand_score)}
-          <a class="saved-item-register" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer">Register ${ICONS.externalLink}</a>
+          <a class="saved-item-register" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer sponsored">Register ${ICONS.externalLink}</a>
           <button type="button" class="saved-item-remove" data-remove="${escapeHtml(d.name)}" aria-label="Remove ${escapeHtml(d.name)} from saved">${ICONS.close}</button>
         </div>
       </div>
@@ -298,7 +333,7 @@ document.getElementById('saved-panel-bulk-btn').addEventListener('click', async 
       btn.classList.remove('is-copied');
     }, 2000);
   } catch {}
-  window.open('https://www.dynadot.com/domain/bulk-search', '_blank', 'noopener');
+  window.open(DYNADOT.bulkSearchUrl(), '_blank', 'noopener');
   logEvent('bulk_register_clicked', { count: state.savedDomains.length });
 });
 
@@ -360,7 +395,7 @@ function renderSharedListPanel(items) {
         <span class="shared-list-item-name">${escapeHtml(d.name)}<span class="shared-list-item-tld">.${escapeHtml(d.tld)}</span></span>
         <div class="shared-list-item-actions">
           <button type="button" class="shared-list-save-btn${saved ? ' is-saved' : ''}" data-shared-save="${escapeHtml(d.name)}" data-shared-tld="${escapeHtml(d.tld)}" aria-pressed="${saved}" aria-label="${saved ? 'Remove' : 'Save'} ${escapeHtml(d.name)}">${saved ? ICONS.bookmarkFilled : ICONS.bookmarkOutline}</button>
-          <a class="shared-list-register" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer">Register${priceHtml} ${ICONS.externalLink}</a>
+          <a class="shared-list-register" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer sponsored">Register${priceHtml} ${ICONS.externalLink}</a>
         </div>
       </div>
     `;
@@ -514,22 +549,32 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function resetGenerateProgress() {
+  const block = document.getElementById('generate-progress');
+  block.classList.remove('is-error');
+  block.innerHTML =
+    '<div class="spinner"></div><div class="progress-block-text">'
+    + '<span class="progress-text">Crafting names around your idea…</span>'
+    + '<span class="progress-subtext">Usually 10-20s for 50 tailored names.</span></div>';
+}
+
+function resetAvailabilityProgress() {
+  const block = document.getElementById('availability-progress');
+  block.hidden = false;
+  block.classList.remove('is-error');
+  block.innerHTML = '<div class="spinner"></div><span class="progress-text">Checking availability…</span>';
+}
+
 function resetStepsFrom(n) {
   for (let i = n; i <= TOTAL_STEPS; i += 1) {
     setStepState(i, 'pending');
     setSummary(i, '');
     if (i === 2) {
-      document.getElementById('generate-progress').classList.remove('is-error');
-      document.getElementById('generate-progress').innerHTML =
-        '<div class="spinner"></div><div class="progress-block-text">'
-        + '<span class="progress-text">Crafting names around your idea…</span>'
-        + '<span class="progress-subtext">Usually 10-20s for 50 tailored names.</span></div>';
+      resetGenerateProgress();
     }
     if (i === 3) {
-      const progress = document.getElementById('availability-progress');
-      progress.hidden = true;
-      progress.classList.remove('is-error');
-      progress.innerHTML = '<div class="spinner"></div><span class="progress-text">Checking availability…</span>';
+      resetAvailabilityProgress();
+      document.getElementById('availability-progress').hidden = true;
       document.querySelector('.step[data-step="3"] .step-help').textContent =
         'Select the extensions to check — .com is always included.';
       // setStepState('pending') strips the is-editing class directly, which
@@ -880,7 +925,7 @@ function handleEditStep(stepNum) {
     enterPhaseB(state.description, true);
 
     step1.classList.add('is-editing');
-    describeSubmit.innerHTML = 'Regenerate Names &rarr;';
+    describeSubmit.innerHTML = `${ICONS.sparkle} Regenerate Names &rarr;`;
     scrollToStep(1);
   }
 
@@ -905,7 +950,7 @@ function handleEditStep(stepNum) {
 function leaveEditMode() {
   const step1 = document.querySelector('.step[data-step="1"]');
   step1.classList.remove('is-editing');
-  describeSubmit.innerHTML = 'Generate Names &rarr;';
+  describeSubmit.innerHTML = `${ICONS.sparkle} Generate Names &rarr;`;
 }
 
 function leaveEditModeStep3() {
@@ -915,15 +960,24 @@ function leaveEditModeStep3() {
 
 document.getElementById('step3-cancel-btn').addEventListener('click', leaveEditModeStep3);
 
-document.getElementById('step3-recheck-btn').addEventListener('click', () => {
+document.getElementById('step3-recheck-btn').addEventListener('click', async (e) => {
   state.selectedTlds = getSelectedTlds();
-
-  const progress = document.getElementById('availability-progress');
-  progress.hidden = false;
-  progress.classList.remove('is-error');
-  progress.innerHTML = '<div class="spinner"></div><span class="progress-text">Checking availability…</span>';
-
-  checkAvailability();
+  const btn = e.currentTarget;
+  // Rechecking many names across several TLDs can take a while server-side
+  // -- without this, the button just sits there looking clickable while
+  // nothing visibly happens, which reads as broken and invites a second,
+  // overlapping click. checkAvailability() never throws (it handles its
+  // own errors), so this always re-enables -- harmlessly, since success
+  // hides the whole edit panel anyway, and on error the panel stays open
+  // with a working button again.
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  try {
+    await checkAvailability();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Recheck availability &rarr;';
+  }
 });
 
 // The TLD chips only ever take effect via the "Change" > "Recheck" flow, so
@@ -1033,6 +1087,12 @@ function clearNamesPrefetch() {
 }
 
 async function generateNames() {
+  // Clears any leftover error/retry markup immediately -- otherwise clicking
+  // Retry leaves the old error message and button on screen with no feedback
+  // until the request settles, which reads as "nothing happened" and invites
+  // repeated clicks (and thus concurrent requests).
+  resetGenerateProgress();
+
   // A real (non-demo) call for 50 names can run past the "usually 10-20s"
   // estimate shown up front -- if it does, swap in a message that confirms
   // the app is still working rather than leaving the original estimate
@@ -1088,6 +1148,10 @@ async function generateNames() {
 // ---------- Step 3: check domain availability ----------
 
 async function checkAvailability() {
+  // Same reasoning as generateNames(): reset the block up front so a retry
+  // shows a spinner right away instead of leaving the stale error + button.
+  resetAvailabilityProgress();
+
   try {
     const res = await fetch('/api/check-availability', {
       method: 'POST',
@@ -1522,7 +1586,7 @@ function renderChooseStep() {
       footer.className = 'card-taken-footer';
       footer.innerHTML = `
         <span class="card-taken-label">Nothing came back available</span>
-        <a class="card-taken-footer-link" href="${DYNADOT.marketSearchUrl(marketDomain)}" target="_blank" rel="noopener noreferrer">Check aftermarket ${ICONS.externalLink}</a>
+        <a class="card-taken-footer-link" href="${DYNADOT.marketSearchUrl(marketDomain)}" target="_blank" rel="noopener noreferrer sponsored">Check aftermarket ${ICONS.externalLink}</a>
       `;
       footer.querySelector('.card-taken-footer-link').addEventListener('click', () => {
         // Same "leaving to Dynadot" milestone as the register click and the
@@ -1609,7 +1673,7 @@ function renderChooseStep() {
           if (!d.available) return `<div class="hp-card hp-taken">${inner}</div>`;
 
           return `
-            <a class="hp-card hp-avail" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer" data-name="${escapeHtml(d.name)}" data-tld="${escapeHtml(d.tld)}" aria-label="Register ${escapeHtml(domain)} on Dynadot">${inner}
+            <a class="hp-card hp-avail" href="${DYNADOT.searchUrl(domain)}" target="_blank" rel="noopener noreferrer sponsored" data-name="${escapeHtml(d.name)}" data-tld="${escapeHtml(d.tld)}" aria-label="Register ${escapeHtml(domain)} on Dynadot">${inner}
             </a>`;
         })
         .join('');

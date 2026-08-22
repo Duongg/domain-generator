@@ -528,7 +528,21 @@ router.post('/generate-names', async (req, res) => {
 // RDAP returns 404 when a domain is NOT registered (available),
 // 200 when it IS registered (taken). Anything else is "unknown".
 // TLDs without a known RDAP endpoint return null (unknown) immediately.
-const RDAP_CONCURRENCY = 8;
+//
+// Netlify Functions (see netlify.toml) kill a synchronous request at ~10s.
+// A full recheck -- up to 60 names x 6 selected TLDs, most of which do hit
+// a real RDAP server -- measured at 20s+ wall-clock at the old concurrency
+// of 8, which is well past that limit: the request gets killed mid-flight
+// and the client sees a bare gateway error, which looks exactly like "the
+// button doesn't work." Concurrency is raised and the per-call timeout
+// tightened below to pull the common case back under the limit, and
+// checkDomainsBatched() enforces a hard wall-clock budget as a backstop so
+// a run of slow/unresponsive registries can't blow the whole request up
+// even in the worst case -- it reports whatever didn't finish as unknown
+// instead.
+const RDAP_CONCURRENCY = 30;
+const RDAP_TIMEOUT_MS = 4000;
+const RDAP_BUDGET_MS = 8000;
 
 // .io and .co have no RDAP endpoint anywhere -- confirmed against IANA's
 // RDAP bootstrap registry (data.iana.org/rdap/dns.json), which lists none
@@ -551,7 +565,7 @@ async function checkOneDomain(name, tld) {
 
   const domain = `${name}.${tld}`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6000);
+  const timer = setTimeout(() => controller.abort(), RDAP_TIMEOUT_MS);
   try {
     const resp = await fetch(`${base}${domain}`, {
       headers: { Accept: 'application/rdap+json' },
@@ -570,7 +584,14 @@ async function checkOneDomain(name, tld) {
 async function checkDomainsBatched(names, tlds) {
   const tasks = names.flatMap((name) => tlds.map((tld) => ({ name, tld })));
   const results = [];
+  const deadline = Date.now() + RDAP_BUDGET_MS;
   for (let i = 0; i < tasks.length; i += RDAP_CONCURRENCY) {
+    if (Date.now() >= deadline) {
+      // Out of budget -- report the rest as unknown rather than risk the
+      // whole request getting killed by the platform's function timeout.
+      results.push(...tasks.slice(i).map(({ name, tld }) => ({ name, tld, available: null })));
+      break;
+    }
     const batch = tasks.slice(i, i + RDAP_CONCURRENCY);
     const batchResults = await Promise.all(batch.map(({ name, tld }) => checkOneDomain(name, tld)));
     results.push(...batchResults);
@@ -600,6 +621,106 @@ router.post('/check-availability', async (req, res) => {
   } catch (err) {
     console.error('Availability check error:', err);
     res.status(500).json({ error: 'Availability check failed.' });
+  }
+});
+
+// --- Phase 3: domain pricing ---
+// Dynadot's `tld_price` API command returns live registration pricing for
+// every TLD in one call, no domain name needed (see
+// dynadot.com/domain/api3.html). It needs a Dynadot account API key
+// (Tools -> API in the account control panel) -- a separate, unrelated
+// approval from the Ambassador/affiliate program referenced above, so it
+// can be wired in independently of that.
+const DYNADOT_API_KEY = process.env.DYNADOT_API_KEY;
+
+if (!DYNADOT_API_KEY) {
+  console.warn('[pricing] No DYNADOT_API_KEY found -- serving fixed fallback prices instead of live Dynadot pricing.');
+}
+
+// Used until a real DYNADOT_API_KEY is configured, or if a live call ever
+// fails -- the same manually-verified numbers the app shipped with before
+// this endpoint existed. .ai/.net/.org stay omitted here: unauthenticated
+// scraping of those pages used to return inconsistent currencies, and
+// there's no live source to cross-check against without a real key.
+const FALLBACK_TLD_PRICING = {
+  com: { usd: 10.88 },
+  io: { usd: 28.89 },
+  co: { usd: 3.48 },
+  app: { usd: 9.99 },
+  dev: { usd: 8.00 },
+};
+
+const PRICING_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // registrar pricing moves rarely -- avoid re-hitting Dynadot on every page load
+let pricingCache = null; // { pricing, live, fetchedAt }
+
+// Dynadot's docs describe each tld_price entry as a { Tld, Price: {
+// Register, Renew, Transfer, Restore }, Currency } object, but not the
+// exact wrapper nesting around the list, and there's no live API key in
+// this environment to confirm it against a real response. Rather than
+// hardcode a guessed path that would silently return nothing if the
+// nesting is off by a level, this walks the whole parsed response looking
+// for anything shaped like that leaf pattern. If live prices don't show up
+// once a real key is added, logging `raw` in the catch below will reveal
+// the actual shape to key off of directly.
+function extractTldPrices(node, out) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    node.forEach((item) => extractTldPrices(item, out));
+    return;
+  }
+  const tld = node.Tld || node.TLD || node.tld;
+  const register = node.Price?.Register ?? node.price?.register;
+  if (typeof tld === 'string' && register != null) {
+    const usd = Number(register);
+    if (Number.isFinite(usd)) out[tld.toLowerCase()] = { usd };
+  }
+  Object.values(node).forEach((v) => extractTldPrices(v, out));
+}
+
+async function fetchLiveTldPricing() {
+  const url = `https://api.dynadot.com/api3.json?key=${encodeURIComponent(DYNADOT_API_KEY)}&command=tld_price&currency=usd`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  let raw;
+  try {
+    const resp = await fetch(url, { signal: controller.signal });
+    raw = await resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
+  // Confirmed shape for the error case (e.g. an invalid key) via a live
+  // probe against the real endpoint: {"Response":{"ResponseCode":"-1",
+  // "Error":"invalid key"}}. The success shape is not similarly confirmed --
+  // see extractTldPrices above.
+  if (raw?.Response?.Error) throw new Error(raw.Response.Error);
+
+  const pricing = {};
+  extractTldPrices(raw, pricing);
+  if (Object.keys(pricing).length === 0) {
+    throw new Error('tld_price response had no recognizable price entries');
+  }
+  return pricing;
+}
+
+router.get('/domain-pricing', async (req, res) => {
+  const now = Date.now();
+  if (pricingCache && now - pricingCache.fetchedAt < PRICING_CACHE_TTL_MS) {
+    return res.json({ pricing: pricingCache.pricing, live: pricingCache.live });
+  }
+
+  if (!DYNADOT_API_KEY) {
+    pricingCache = { pricing: FALLBACK_TLD_PRICING, live: false, fetchedAt: now };
+    return res.json({ pricing: FALLBACK_TLD_PRICING, live: false });
+  }
+
+  try {
+    const pricing = await fetchLiveTldPricing();
+    pricingCache = { pricing, live: true, fetchedAt: now };
+    res.json({ pricing, live: true });
+  } catch (err) {
+    console.error('Dynadot pricing fetch failed, serving fallback:', err.message);
+    pricingCache = { pricing: FALLBACK_TLD_PRICING, live: false, fetchedAt: now };
+    res.json({ pricing: FALLBACK_TLD_PRICING, live: false });
   }
 });
 
